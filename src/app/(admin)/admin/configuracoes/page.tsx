@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Save, Building2, Bell, Smartphone, Loader2 } from "lucide-react";
+import { Save, Building2, Bell, Smartphone, Loader2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, serverTimestamp } from "firebase/firestore";
 
 export default function AdminSettings() {
   const { user } = useUser();
@@ -49,11 +49,12 @@ export default function AdminSettings() {
       phoneNumber: phone,
       address: address,
       ownerId: user.uid,
-      updatedAt: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
     };
 
     setDocumentNonBlocking(companyRef, data, { merge: true });
     
+    // Pequeno delay para feedback visual
     setTimeout(() => {
       setLoading(false);
       toast({
@@ -79,18 +80,22 @@ export default function AdminSettings() {
       </div>
 
       <Tabs defaultValue="perfil" className="space-y-6">
-        <TabsList className="bg-background border">
-          <TabsTrigger value="perfil" className="gap-2">
+        <TabsList className="bg-background border w-full sm:w-auto justify-start h-auto p-1 flex-wrap">
+          <TabsTrigger value="perfil" className="gap-2 px-4 py-2">
             <Building2 className="w-4 h-4" />
-            Perfil
+            Perfil do Salão
           </TabsTrigger>
-          <TabsTrigger value="notificacoes" className="gap-2">
+          <TabsTrigger value="notificacoes" className="gap-2 px-4 py-2">
             <Bell className="w-4 h-4" />
             Notificações
           </TabsTrigger>
+          <TabsTrigger value="regras" className="gap-2 px-4 py-2">
+            <Clock className="w-4 h-4" />
+            Regras de Agendamento
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="perfil">
+        <TabsContent value="perfil" className="space-y-6">
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle>Informações Gerais</CardTitle>
@@ -100,19 +105,31 @@ export default function AdminSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Nome do Estabelecimento</Label>
-                  <Input value={salonName} onChange={(e) => setSalonName(e.target.value)} placeholder="Ex: Studio VIP" />
+                  <Input 
+                    value={salonName} 
+                    onChange={(e) => setSalonName(e.target.value)} 
+                    placeholder="Ex: Studio VIP" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Telefone / WhatsApp</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+                  <Input 
+                    value={phone} 
+                    onChange={(e) => setPhone(e.target.value)} 
+                    placeholder="(11) 99999-9999" 
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Endereço Completo</Label>
-                  <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, Número, Bairro - Cidade, UF" />
+                  <Input 
+                    value={address} 
+                    onChange={(e) => setAddress(e.target.value)} 
+                    placeholder="Rua, Número, Bairro - Cidade, UF" 
+                  />
                 </div>
               </div>
               <div className="pt-4 flex justify-end">
-                <Button onClick={handleSave} className="gap-2" disabled={loading}>
+                <Button onClick={handleSave} className="gap-2 w-full sm:w-auto" disabled={loading}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Salvar Alterações
                 </Button>
@@ -125,30 +142,57 @@ export default function AdminSettings() {
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle>Automações de WhatsApp</CardTitle>
-              <CardDescription>Configure as mensagens automáticas (Simulação).</CardDescription>
+              <CardDescription>Configure como e quando seus clientes recebem mensagens.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <Label>Confirmação Instantânea</Label>
-                    <p className="text-sm text-muted-foreground">Envia mensagem assim que o cliente agenda.</p>
+                    <Label className="text-base">Confirmação Instantânea</Label>
+                    <p className="text-sm text-muted-foreground">Envia uma mensagem automática assim que o cliente finaliza o agendamento.</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <Label>Lembrete 24h antes</Label>
-                    <p className="text-sm text-muted-foreground">Reduza faltas com lembretes automáticos.</p>
+                    <Label className="text-base">Lembrete 24h antes</Label>
+                    <p className="text-sm text-muted-foreground">Reduza faltas enviando um lembrete automático um dia antes do serviço.</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
               </div>
               <div className="pt-4 flex justify-end">
-                <Button onClick={() => toast({ title: "Preferências salvas" })} className="gap-2">
+                <Button onClick={() => toast({ title: "Preferências salvas" })} className="gap-2 w-full sm:w-auto">
                   <Save className="w-4 h-4" />
-                  Salvar
+                  Salvar Notificações
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="regras">
+          <Card className="border-none shadow-sm">
+            <CardHeader>
+              <CardTitle>Regras de Negócio</CardTitle>
+              <CardDescription>Defina como sua agenda deve se comportar.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Tempo de Antecedência Mínima (horas)</Label>
+                  <Input type="number" defaultValue="2" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Intervalo entre Agendamentos (minutos)</Label>
+                  <Input type="number" defaultValue="15" />
+                </div>
+              </div>
+              <div className="pt-4 flex justify-end">
+                <Button onClick={() => toast({ title: "Regras atualizadas" })} className="gap-2 w-full sm:w-auto">
+                  <Save className="w-4 h-4" />
+                  Salvar Regras
                 </Button>
               </div>
             </CardContent>

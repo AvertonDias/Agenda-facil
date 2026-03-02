@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -36,16 +35,26 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const newUser = userCredential.user;
 
-      await updateProfile(user, { displayName: name });
+      await updateProfile(newUser, { displayName: name });
 
-      // Create User Profile in Firestore
-      await setDoc(doc(db, 'perfis_usuarios', user.uid), {
-        id: user.uid,
-        email: user.email,
+      // 1. Criar Perfil do Usuário
+      await setDoc(doc(db, 'perfis_usuarios', newUser.uid), {
+        id: newUser.uid,
+        email: newUser.email,
         displayName: name,
         role: 'admin',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // 2. Criar Documento da Empresa inicial (Crucial para evitar erros de permissão)
+      await setDoc(doc(db, 'empresas', newUser.uid), {
+        id: newUser.uid,
+        name: name,
+        ownerId: newUser.uid,
+        plan: 'Free',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

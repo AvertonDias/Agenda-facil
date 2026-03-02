@@ -3,8 +3,7 @@
  *
  * Core Philosophy:
  * This ruleset enforces a strict ownership model. Access to company data
- * is granted if the company ID in the path matches the authenticated user's UID,
- * or if the user is identified as the owner in the document data.
+ * is granted if the company ID in the path matches the authenticated user's UID.
  */
 
 rules_version = '2';
@@ -21,49 +20,26 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isResourceOwner(ownerId) {
-      return isSignedIn() && request.auth.uid == ownerId;
-    }
-
-    function isRequestOwner(ownerId) {
-      return isSignedIn() && request.auth.uid == ownerId;
-    }
-
-    function isExistingOwner(ownerId) {
-      return resource != null && isResourceOwner(ownerId);
-    }
-
     // --- COLLECTION RULES ---
 
+    // Perfis de usuários: Apenas o próprio usuário pode acessar seu perfil
     match /perfis_usuarios/{userId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow read, write: if isOwner(userId);
     }
 
+    // Empresas e suas subcoleções: 
+    // O dono (UID correspondente ao ID do documento) tem acesso total à sua árvore de dados.
     match /empresas/{empresaId} {
-      // Permite acesso se o ID da empresa for o UID do usuário ou se ele for o owner no dado
-      allow get, list: if isOwner(empresaId) || (resource != null && isResourceOwner(resource.data.ownerId));
-      allow create: if isOwner(empresaId) || isRequestOwner(request.resource.data.ownerId);
-      allow update, delete: if isOwner(empresaId) || isExistingOwner(resource.data.ownerId);
+      allow read, write: if isOwner(empresaId);
 
-      // Subcoleções simplificadas para permitir acesso total ao dono da empresa (empresaId == uid)
-      match /servicos/{servicoId} {
-        allow read, write: if isOwner(empresaId);
-      }
-
-      match /colaboradores/{colaboradorId} {
-        allow read, write: if isOwner(empresaId);
-      }
-
-      match /clientes/{clienteId} {
-        allow read, write: if isOwner(empresaId);
-      }
-
-      match /agendamentos/{agendamentoId} {
+      // Permite acesso recursivo a todas as subcoleções (servicos, colaboradores, agendamentos, etc.)
+      match /{allSubcollections=**} {
         allow read, write: if isOwner(empresaId);
       }
     }
+    
+    // Suporte para consultas públicas (ex: página de agendamento do cliente)
+    // No futuro, você pode adicionar regras específicas aqui se quiser que clientes
+    // listem serviços sem estarem logados.
   }
 }

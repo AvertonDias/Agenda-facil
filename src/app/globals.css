@@ -29,6 +29,16 @@
     --chart-3: 160 20% 40%;
     --chart-4: 140 30% 50%;
     --chart-5: 150 40% 60%;
+
+    /* Sidebar variables */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 160 10% 10%;
+    --sidebar-primary: 156 32% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 156 20% 90%;
+    --sidebar-accent-foreground: 156 32% 20%;
+    --sidebar-border: 156 20% 85%;
+    --sidebar-ring: 156 32% 48%;
   }
 }
 

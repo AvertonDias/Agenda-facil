@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useAuth, useFirestore } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -21,8 +21,15 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const auth = useAuth();
   const db = useFirestore();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push('/admin');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +66,14 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">

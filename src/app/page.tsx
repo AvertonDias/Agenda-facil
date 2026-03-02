@@ -1,9 +1,31 @@
 
+'use client';
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/firebase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, Smartphone, Scissors } from "lucide-react";
+import { Calendar, CheckCircle, Smartphone, Scissors, Loader2 } from "lucide-react";
 
 export default function Home() {
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push('/admin');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="p-6 flex justify-between items-center border-b bg-white">

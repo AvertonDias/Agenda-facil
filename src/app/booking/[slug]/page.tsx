@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import { SALON_DATA } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Calendar as CalendarIcon, Clock, Scissors, User, ArrowRight, ChevronLeft, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
-export default function BookingPage() {
+export default function BookingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = React.use(params);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);

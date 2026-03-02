@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Calendar, CheckCircle, Smartphone, Scissors } from "lucide-react";
@@ -11,11 +12,11 @@ export default function Home() {
           <span className="text-2xl font-bold text-primary">AgendaFácil <span className="text-accent">Pro</span></span>
         </div>
         <div className="flex gap-4">
-          <Link href="/admin">
-            <Button variant="ghost">Login Salão</Button>
+          <Link href="/login">
+            <Button variant="ghost">Entrar</Button>
           </Link>
-          <Link href="/booking/agenda-facil-demo">
-            <Button>Agendar Agora</Button>
+          <Link href="/register">
+            <Button>Cadastrar Salão</Button>
           </Link>
         </div>
       </header>
@@ -30,7 +31,7 @@ export default function Home() {
             Menos tempo no telefone, mais tempo cuidando dos seus clientes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-            <Link href="/admin">
+            <Link href="/register">
               <Button size="lg" className="text-lg px-12 h-14 rounded-full">Começar Grátis</Button>
             </Link>
             <Link href="/booking/agenda-facil-demo">

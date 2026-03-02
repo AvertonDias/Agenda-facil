@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
@@ -13,6 +14,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
@@ -26,6 +29,13 @@ const menuItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/');
+  };
 
   return (
     <aside className="w-64 bg-white border-r h-screen sticky top-0 flex flex-col">
@@ -58,7 +68,10 @@ export function AdminSidebar() {
       </nav>
 
       <div className="p-4 border-t">
-        <button className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-destructive hover:bg-red-50 transition-colors">
+        <button 
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-destructive hover:bg-red-50 transition-colors"
+        >
           <LogOut className="w-5 h-5" />
           Sair do Sistema
         </button>

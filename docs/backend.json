@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -342,6 +343,7 @@
   "auth": {
     "providers": [
       "password",
+      "google.com",
       "anonymous"
     ]
   },
@@ -356,104 +358,7 @@
           },
           "description": "Armazena informações de perfil adicionais para usuários autenticados via Firebase. O `userId` corresponde ao UID de autenticação. Acesso exclusivo do proprietário do perfil."
         }
-      },
-      {
-        "path": "/empresas/{empresaId}",
-        "definition": {
-          "entityName": "Company",
-          "schema": {
-            "$ref": "#/backend/entities/Company"
-          },
-          "description": "Coleção principal para cada salão, barbearia ou estúdio. Inclui o `ownerId` do UserProfile que gerencia a empresa. É a raiz para as subcoleções de dados da empresa.",
-          "params": [
-            {
-              "name": "empresaId",
-              "description": "O identificador único da empresa."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}/servicos/{servicoId}",
-        "definition": {
-          "entityName": "Service",
-          "schema": {
-            "$ref": "#/backend/entities/Service"
-          },
-          "description": "Serviços específicos oferecidos por uma empresa. Inclui denormalizado o `ownerId` da empresa-mãe para autorização independente, além do `companyId`.",
-          "params": [
-            {
-              "name": "empresaId",
-              "description": "O identificador único da empresa à qual o serviço pertence."
-            },
-            {
-              "name": "servicoId",
-              "description": "O identificador único do serviço."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}/colaboradores/{colaboradorId}",
-        "definition": {
-          "entityName": "Collaborator",
-          "schema": {
-            "$ref": "#/backend/entities/Collaborator"
-          },
-          "description": "Profissionais que trabalham em uma empresa. Inclui denormalizado o `ownerId` da empresa-mãe para autorização independente, além do `companyId`.",
-          "params": [
-            {
-              "name": "empresaId",
-              "description": "O identificador único da empresa à qual o colaborador pertence."
-            },
-            {
-              "name": "colaboradorId",
-              "description": "O identificador único do colaborador."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}/clientes/{clienteId}",
-        "definition": {
-          "entityName": "Client",
-          "schema": {
-            "$ref": "#/backend/entities/Client"
-          },
-          "description": "Clientes associados a uma empresa. Pode incluir `userId` se o cliente tiver um `UserProfile` logado. Inclui denormalizado o `ownerId` da empresa-mãe para autorização independente, além do `companyId`.",
-          "params": [
-            {
-              "name": "empresaId",
-              "description": "O identificador único da empresa à qual o cliente pertence."
-            },
-            {
-              "name": "clienteId",
-              "description": "O identificador único do cliente."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}/agendamentos/{agendamentoId}",
-        "definition": {
-          "entityName": "Appointment",
-          "schema": {
-            "$ref": "#/backend/entities/Appointment"
-          },
-          "description": "Agendamentos específicos para uma empresa. Inclui `companyId`, `clientId`, `collaboratorId`. Para autorização independente, inclui denormalizado o `ownerId` da empresa-mãe e, se aplicável, o `userId` do cliente logado (como `clientLinkedUserId`).",
-          "params": [
-            {
-              "name": "empresaId",
-              "description": "O identificador único da empresa onde o agendamento foi feito."
-            },
-            {
-              "name": "agendamentoId",
-              "description": "O identificador único do agendamento."
-            }
-          ]
-        }
       }
-    ],
-    "reasoning": "A estrutura do Firestore foi projetada para garantir segurança, escalabilidade e facilidade de depuração, seguindo rigorosamente os princípios de design fornecidos. Priorizamos a **Independência de Autorização** através da desnormalização de campos-chave, eliminando a necessidade de chamadas `get()` nas regras de segurança, o que otimiza o desempenho e simplifica a lógica de autorização. A **Segregação Estrutural** é aplicada, garantindo que cada coleção e subcoleção possua um perfil de segurança homogêneo, facilitando a aplicação de regras claras.\n\n**Justificativa do Design e QAPs (Consultas Seguras):**\n\n1.  **Perfis de Usuário (`/perfis_usuarios/{userId}`):** Esta coleção armazena dados privados de cada usuário. A independência de autorização é intrínseca aqui, pois o `userId` no caminho corresponde diretamente ao `UID` do usuário autenticado (`request.auth.uid`). Regras de segurança podem ser simples: `allow read, write: if request.auth.uid == userId;`. Para QAPs, um usuário só pode consultar seu próprio perfil, e a query `db.collection('perfis_usuarios').doc(auth.uid)` é eficiente e segura.\n\n2.  **Empresas (`/empresas/{empresaId}`):** Cada documento de empresa contém o campo `ownerId`, que é o `UID` do proprietário. Isso garante a independência de autorização, pois as regras podem verificar diretamente `resource.data.ownerId == request.auth.uid` para acesso de leitura e escrita. Para QAPs, o proprietário pode listar e gerenciar suas empresas com uma consulta como `db.collection('empresas').where('ownerId', '==', auth.uid)`, que é performática e alinha a consulta com as regras de segurança.\n\n3.  **Subcoleções de Empresa (Serviços, Colaboradores, Clientes, Agendamentos):**\n    *   **Desnormalização Crucial:** Para todas as subcoleções (`servicos`, `colaboradores`, `clientes`, `agendamentos`) aninhadas sob `/empresas/{empresaId}/`, o campo `ownerId` da empresa-mãe é **desnormalizado** em cada documento da subcoleção. Isso significa que um documento de `servico` terá tanto seu `companyId` quanto o `ownerId` da `company` à qual pertence. Essa estratégia é **CRÍTICA** para a independência de autorização, pois permite que as regras de segurança para essas subcoleções verifiquem `resource.data.ownerId == request.auth.uid` diretamente no documento sendo acessado, sem precisar fazer uma chamada `get()` para o documento pai em `/empresas/{empresaId}`.\n    *   **Apoio a QAPs:** Com o `ownerId` desnormalizado, as consultas `list` para essas subcoleções podem incluir a cláusula `where('ownerId', '==', request.auth.uid)`. Por exemplo, para listar todos os serviços de uma empresa que o usuário possui: `db.collection('empresas/{empresaId}/servicos').where('ownerId', '==', auth.uid)`. Isso garante que o banco de dados pré-filtre os resultados de forma eficiente, evitando que as regras de segurança atuem como filtros, o que é fundamental para consultas de larga escala.\n\n4.  **Acesso de Clientes a Seus Próprios Dados (`/empresas/{empresaId}/clientes/{clienteId}` e `/empresas/{empresaId}/agendamentos/{agendamentoId}`):**\n    *   **Desnormalização Adicional para Cliente:** No caso de documentos de `clientes` e `agendamentos`, se um cliente tem uma conta de usuário (`UserProfile`), seu `UID` (`userId`) será desnormalizado no documento `cliente` (campo `userId`) e também no documento `agendamento` (campo `clientLinkedUserId`). Isso permite que um cliente autenticado acesse *seus próprios* registros de cliente e agendamentos diretamente, sem `get()` adicionais. As regras de segurança para esses documentos podem ser: `allow read, write: if resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid;` (para cliente) e `allow read: if resource.data.ownerId == request.auth.uid || resource.data.clientLinkedUserId == request.auth.uid;` (para agendamento).\n    *   **Apoio a QAPs para Clientes:** Clientes autenticados podem consultar seus próprios agendamentos com uma query como `db.collection('empresas/{empresaId}/agendamentos').where('clientLinkedUserId', '==', auth.uid)`, o que é eficiente e alinhado com as regras.\n\nEm resumo, a desnormalização do `ownerId` (e `clientLinkedUserId` quando aplicável) em todos os documentos descendentes da empresa é a chave para a independência de autorização e para a criação de regras de segurança simples e robustas, garantindo que as consultas `list` sejam eficientes e seguras (QAPs)."
+    ]
   }
 }

@@ -41,11 +41,17 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const auth = useAuth();
   const router = useRouter();
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
 
   const handleSignOut = async () => {
     await signOut(auth);
     router.push('/');
+  };
+
+  const handleItemClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
   return (
@@ -72,6 +78,7 @@ export function AdminSidebar() {
                   asChild
                   isActive={isActive}
                   tooltip={item.label}
+                  onClick={handleItemClick}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     isActive
@@ -94,7 +101,10 @@ export function AdminSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={handleSignOut}
+              onClick={() => {
+                handleSignOut();
+                handleItemClick();
+              }}
               tooltip="Sair do Sistema"
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 hover:text-destructive transition-colors"
             >

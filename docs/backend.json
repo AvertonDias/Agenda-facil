@@ -2,237 +2,100 @@
 {
   "entities": {
     "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Stores additional profile information for users authenticated via Firebase, linking them to specific companies or identifying them as clients.",
+      "description": "Perfil do usuário administrador ou cliente.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity, corresponding to the Firebase Authentication UID."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address, obtained from Firebase Authentication.",
-          "format": "email"
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name or full name."
-        },
-        "photoUrl": {
-          "type": "string",
-          "description": "URL to the user's profile picture, if available.",
-          "format": "uri"
-        },
-        "role": {
-          "type": "string",
-          "description": "The role of the user within the system (e.g., 'admin', 'client')."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "client"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "email",
-        "displayName",
-        "role",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["id", "email", "displayName", "role"]
     },
     "Company": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Company",
       "type": "object",
-      "description": "Represents a salon, barbershop, or aesthetic studio registered in the system.",
+      "description": "Dados do salão ou estabelecimento.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Company entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the company (e.g., salon, barbershop)."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "The main contact phone number for the company."
-        },
-        "address": {
-          "type": "string",
-          "description": "The physical address of the company."
-        },
-        "plan": {
-          "type": "string",
-          "description": "The subscription plan of the company (e.g., 'Free', 'Pro', 'Premium')."
-        },
-        "timezone": {
-          "type": "string",
-          "description": "The IANA timezone identifier for the company's location (e.g., 'America/Sao_Paulo')."
-        },
-        "ownerId": {
-          "type": "string",
-          "description": "Reference to the UserProfile entity of the user who owns or primarily manages this company."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the company record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the company record was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "plan": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "ownerId",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["id", "name", "ownerId"]
     },
     "Service": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Service",
       "type": "object",
-      "description": "Represents a service offered by a company.",
+      "description": "Serviço oferecido pelo salão.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Service entity."
-        },
-        "ownerId": {
-          "type": "string",
-          "description": "Reference to the owner UID."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the service."
-        },
-        "durationMinutes": {
-          "type": "number",
-          "description": "The standard duration of the service in minutes."
-        },
-        "basePrice": {
-          "type": "number",
-          "description": "The base price of the service."
-        },
-        "isActive": {
-          "type": "boolean",
-          "description": "Indicates if the service is active."
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "basePrice": { "type": "number" },
+        "isActive": { "type": "boolean" }
       },
-      "required": [
-        "id",
-        "ownerId",
-        "name",
-        "durationMinutes",
-        "basePrice",
-        "isActive"
-      ]
+      "required": ["id", "name", "durationMinutes", "basePrice"]
     },
     "Collaborator": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Collaborator",
       "type": "object",
-      "description": "Represents a professional working for a company.",
+      "description": "Profissional da equipe.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Collaborator entity."
-        },
-        "ownerId": {
-          "type": "string",
-          "description": "Reference to the owner UID."
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the collaborator."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "The contact phone number."
-        },
-        "role": {
-          "type": "string",
-          "description": "The professional role."
-        },
-        "offeredServiceIds": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "List of service IDs performed by this collaborator."
-        },
-        "isActive": {
-          "type": "boolean",
-          "description": "Indicates if active."
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "offeredServiceIds": { "type": "array", "items": { "type": "string" } },
+        "isActive": { "type": "boolean" }
       },
-      "required": [
-        "id",
-        "ownerId",
-        "name",
-        "isActive"
-      ]
+      "required": ["id", "name"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "type": "object",
+      "description": "Agendamento de serviço.",
+      "properties": {
+        "id": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "date": { "type": "string", "description": "Formato YYYY-MM-DD" },
+        "time": { "type": "string", "description": "Formato HH:mm" },
+        "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado"] }
+      },
+      "required": ["id", "clientName", "serviceId", "employeeId", "date", "time"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "google.com",
-      "anonymous"
-    ]
+    "providers": ["password", "google.com"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/perfis_usuarios/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          }
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}",
-        "definition": {
-          "entityName": "Company",
-          "schema": {
-            "$ref": "#/backend/entities/Company"
-          }
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}/servicos/{servicoId}",
-        "definition": {
-          "entityName": "Service",
-          "schema": {
-            "$ref": "#/backend/entities/Service"
-          }
-        }
-      },
-      {
-        "path": "/empresas/{empresaId}/colaboradores/{colaboradorId}",
-        "definition": {
-          "entityName": "Collaborator",
-          "schema": {
-            "$ref": "#/backend/entities/Collaborator"
-          }
-        }
-      }
-    ]
+    "/perfis_usuarios/{userId}": {
+      "schema": "UserProfile",
+      "description": "Perfis de usuários"
+    },
+    "/empresas/{empresaId}": {
+      "schema": "Company",
+      "description": "Dados da empresa"
+    },
+    "/empresas/{empresaId}/servicos/{servicoId}": {
+      "schema": "Service",
+      "description": "Catálogo de serviços"
+    },
+    "/empresas/{empresaId}/colaboradores/{colaboradorId}": {
+      "schema": "Collaborator",
+      "description": "Equipe de profissionais"
+    },
+    "/empresas/{empresaId}/agendamentos/{agendamentoId}": {
+      "schema": "Appointment",
+      "description": "Registro de agendamentos"
+    }
   }
 }

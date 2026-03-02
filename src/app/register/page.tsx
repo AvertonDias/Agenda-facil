@@ -39,25 +39,25 @@ export default function RegisterPage() {
 
       await updateProfile(newUser, { displayName: name });
 
-      // 1. Criar Perfil do Usuário
-      await setDoc(doc(db, 'perfis_usuarios', newUser.uid), {
-        id: newUser.uid,
-        email: newUser.email,
-        displayName: name,
-        role: 'admin',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // 2. Criar Documento da Empresa inicial (Crucial para as regras de segurança funcionarem)
-      await setDoc(doc(db, 'empresas', newUser.uid), {
-        id: newUser.uid,
-        name: name,
-        ownerId: newUser.uid,
-        plan: 'Free',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      // Criar Perfil e Empresa em paralelo para velocidade
+      await Promise.all([
+        setDoc(doc(db, 'perfis_usuarios', newUser.uid), {
+          id: newUser.uid,
+          email: newUser.email,
+          displayName: name,
+          role: 'admin',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }),
+        setDoc(doc(db, 'empresas', newUser.uid), {
+          id: newUser.uid,
+          name: name,
+          ownerId: newUser.uid,
+          plan: 'Free',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      ]);
 
       toast({
         title: 'Conta criada!',

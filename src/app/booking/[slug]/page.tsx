@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -8,8 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Calendar as CalendarIcon, Clock, Scissors, User, ArrowRight, ChevronLeft, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
-export default function BookingPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = React.use(params);
+export default function BookingPage(props: { params: Promise<{ slug: string }> }) {
+  const { slug } = React.use(props.params);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);

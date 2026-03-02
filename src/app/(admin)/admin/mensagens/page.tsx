@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Sparkles, Copy, Send, Loader2 } from "lucide-react";
+import { MessageSquare, Sparkles, Copy, Send, Loader2, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminMessages() {
@@ -45,6 +45,11 @@ export default function AdminMessages() {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(generatedMessage);
     toast({ title: "Sucesso", description: "Mensagem copiada!" });
+  };
+
+  const openWhatsapp = () => {
+    const encodedMessage = encodeURIComponent(generatedMessage);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
   };
 
   return (
@@ -168,7 +173,11 @@ export default function AdminMessages() {
                 <Copy className="w-4 h-4" />
                 Copiar
               </Button>
-              <Button className="flex-1 gap-2 bg-green-600 hover:bg-green-700" disabled={!generatedMessage}>
+              <Button 
+                className="flex-1 gap-2 bg-green-600 hover:bg-green-700" 
+                disabled={!generatedMessage}
+                onClick={openWhatsapp}
+              >
                 <Send className="w-4 h-4" />
                 Enviar WhatsApp
               </Button>
@@ -179,5 +188,3 @@ export default function AdminMessages() {
     </div>
   );
 }
-
-import { Settings as SettingsIcon } from "lucide-react";

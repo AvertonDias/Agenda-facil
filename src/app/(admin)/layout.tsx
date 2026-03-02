@@ -40,16 +40,17 @@ export default function AdminLayout({
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen bg-background w-full">
         <AdminSidebar />
-        <div className="flex-1 flex flex-col min-h-screen">
-          <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card/50 backdrop-blur-sm px-4 sticky top-0 z-10">
+        <div className="flex-1 flex flex-col min-h-screen w-full">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card/50 backdrop-blur-sm px-4 sticky top-0 z-10 w-full">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <div className="flex-1 flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Painel de Controle</span>
+              <span className="text-sm font-medium text-muted-foreground hidden sm:inline-block">Painel de Controle</span>
+              <span className="text-sm font-medium text-muted-foreground sm:hidden">Painel</span>
             </div>
           </header>
-          <main className="flex-1 p-8 overflow-auto">
-            <div className="max-w-6xl mx-auto">{children}</div>
+          <main className="flex-1 p-4 md:p-8 overflow-auto w-full">
+            <div className="max-w-6xl mx-auto w-full">{children}</div>
           </main>
         </div>
       </div>

@@ -1,0 +1,459 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Stores additional profile information for users authenticated via Firebase, linking them to specific companies or identifying them as clients.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity, corresponding to the Firebase Authentication UID."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, obtained from Firebase Authentication.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name or full name."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "URL to the user's profile picture, if available.",
+          "format": "uri"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the system (e.g., 'admin', 'client')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "displayName",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Company": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Company",
+      "type": "object",
+      "description": "Represents a salon, barbershop, or aesthetic studio registered in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Company entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the company (e.g., salon, barbershop)."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The main contact phone number for the company."
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical address of the company."
+        },
+        "plan": {
+          "type": "string",
+          "description": "The subscription plan of the company (e.g., 'Free', 'Pro', 'Premium')."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "The IANA timezone identifier for the company's location (e.g., 'America/Sao_Paulo')."
+        },
+        "openingHours": {
+          "type": "array",
+          "description": "An array of daily opening and closing hours for the company. Each item is an object with 'dayOfWeek' (string, e.g., 'Monday'), 'openTime' (string, HH:mm), 'closeTime' (string, HH:mm), and 'isClosed' (boolean).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile entity of the user who owns or primarily manages this company. (Relationship: UserProfile 1:N Company)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the company record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the company record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phoneNumber",
+        "address",
+        "plan",
+        "timezone",
+        "openingHours",
+        "ownerId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Service": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Service",
+      "type": "object",
+      "description": "Represents a service offered by a company (e.g., haircut, manicure).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Service entity."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "Reference to the Company entity that offers this service. (Relationship: Company 1:N Service)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the service (e.g., 'Corte Masculino', 'Manicure')."
+        },
+        "durationMinutes": {
+          "type": "number",
+          "description": "The standard duration of the service in minutes."
+        },
+        "basePrice": {
+          "type": "number",
+          "description": "The base price of the service."
+        },
+        "bufferMinutes": {
+          "type": "number",
+          "description": "Additional buffer time in minutes required after the service before the next appointment can start."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates if the service is currently active and available for booking."
+        }
+      },
+      "required": [
+        "id",
+        "companyId",
+        "name",
+        "durationMinutes",
+        "basePrice",
+        "bufferMinutes",
+        "isActive"
+      ]
+    },
+    "Collaborator": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Collaborator",
+      "type": "object",
+      "description": "Represents a professional working for a company, capable of performing services.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Collaborator entity."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "Reference to the Company entity this collaborator works for. (Relationship: Company 1:N Collaborator)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the collaborator."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The contact phone number for the collaborator."
+        },
+        "offeredServiceIds": {
+          "type": "array",
+          "description": "References to Service entities that this collaborator is qualified to perform. (Relationship: Service N:N Collaborator)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weeklySchedule": {
+          "type": "array",
+          "description": "The weekly availability schedule for the collaborator. Each item is an object with 'dayOfWeek' (string, e.g., 'Monday'), 'startTime' (string, HH:mm), 'endTime' (string, HH:mm), and 'isAvailable' (boolean).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates if the collaborator is currently active and available for appointments."
+        },
+        "commissionPercentage": {
+          "type": "number",
+          "description": "The percentage of commission the collaborator receives for services performed."
+        }
+      },
+      "required": [
+        "id",
+        "companyId",
+        "name",
+        "phoneNumber",
+        "offeredServiceIds",
+        "weeklySchedule",
+        "isActive",
+        "commissionPercentage"
+      ]
+    },
+    "Client": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a customer who books services with a company. Can be an anonymous client or a logged-in user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Client entity."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "Reference to the Company entity this client is associated with. (Relationship: Company 1:N Client)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the client."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The contact phone number of the client."
+        },
+        "appointmentIds": {
+          "type": "array",
+          "description": "References to past or future Appointment entities associated with this client. (Relationship: Client 1:N Appointment)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reliabilityIndex": {
+          "type": "number",
+          "description": "A numerical index indicating the client's reliability (e.g., for cancellations, no-shows)."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile entity if this client has an associated login account. (Relationship: UserProfile 1:1 Client)"
+        }
+      },
+      "required": [
+        "id",
+        "companyId",
+        "name",
+        "phoneNumber"
+      ]
+    },
+    "Appointment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Appointment",
+      "type": "object",
+      "description": "Represents a scheduled booking for one or more services with a specific collaborator for a client.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Appointment entity."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "Reference to the Company entity where this appointment is booked. (Relationship: Company 1:N Appointment)"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "The name of the client for this appointment."
+        },
+        "clientPhoneNumber": {
+          "type": "string",
+          "description": "The phone number of the client for this appointment."
+        },
+        "serviceIds": {
+          "type": "array",
+          "description": "References to Service entities included in this appointment. (Relationship: Service N:N Appointment)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collaboratorId": {
+          "type": "string",
+          "description": "Reference to the Collaborator entity assigned to this appointment. (Relationship: Collaborator 1:N Appointment)"
+        },
+        "startUtc": {
+          "type": "string",
+          "description": "The UTC timestamp when the appointment is scheduled to start.",
+          "format": "date-time"
+        },
+        "endUtc": {
+          "type": "string",
+          "description": "The UTC timestamp when the appointment is scheduled to end.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the appointment (e.g., 'pending', 'confirmed', 'canceled', 'completed')."
+        },
+        "clientConfirmed": {
+          "type": "boolean",
+          "description": "Indicates if the client has explicitly confirmed the appointment via a reminder."
+        },
+        "reminder24hSent": {
+          "type": "boolean",
+          "description": "Indicates if the 24-hour reminder message has been sent."
+        },
+        "reminder3hSent": {
+          "type": "boolean",
+          "description": "Indicates if the 3-hour reminder message has been sent."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to the Client entity if this appointment is associated with a registered client. (Relationship: Client 1:N Appointment)"
+        }
+      },
+      "required": [
+        "id",
+        "companyId",
+        "clientName",
+        "clientPhoneNumber",
+        "serviceIds",
+        "collaboratorId",
+        "startUtc",
+        "endUtc",
+        "status",
+        "clientConfirmed",
+        "reminder24hSent",
+        "reminder3hSent"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/perfis_usuarios/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Armazena informações de perfil adicionais para usuários autenticados via Firebase. O `userId` corresponde ao UID de autenticação. Acesso exclusivo do proprietário do perfil."
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}",
+        "definition": {
+          "entityName": "Company",
+          "schema": {
+            "$ref": "#/backend/entities/Company"
+          },
+          "description": "Coleção principal para cada salão, barbearia ou estúdio. Inclui o `ownerId` do UserProfile que gerencia a empresa. É a raiz para as subcoleções de dados da empresa.",
+          "params": [
+            {
+              "name": "empresaId",
+              "description": "O identificador único da empresa."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}/servicos/{servicoId}",
+        "definition": {
+          "entityName": "Service",
+          "schema": {
+            "$ref": "#/backend/entities/Service"
+          },
+          "description": "Serviços específicos oferecidos por uma empresa. Inclui denormalizado o `ownerId` da empresa-mãe para autorização independente, além do `companyId`.",
+          "params": [
+            {
+              "name": "empresaId",
+              "description": "O identificador único da empresa à qual o serviço pertence."
+            },
+            {
+              "name": "servicoId",
+              "description": "O identificador único do serviço."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}/colaboradores/{colaboradorId}",
+        "definition": {
+          "entityName": "Collaborator",
+          "schema": {
+            "$ref": "#/backend/entities/Collaborator"
+          },
+          "description": "Profissionais que trabalham em uma empresa. Inclui denormalizado o `ownerId` da empresa-mãe para autorização independente, além do `companyId`.",
+          "params": [
+            {
+              "name": "empresaId",
+              "description": "O identificador único da empresa à qual o colaborador pertence."
+            },
+            {
+              "name": "colaboradorId",
+              "description": "O identificador único do colaborador."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}/clientes/{clienteId}",
+        "definition": {
+          "entityName": "Client",
+          "schema": {
+            "$ref": "#/backend/entities/Client"
+          },
+          "description": "Clientes associados a uma empresa. Pode incluir `userId` se o cliente tiver um `UserProfile` logado. Inclui denormalizado o `ownerId` da empresa-mãe para autorização independente, além do `companyId`.",
+          "params": [
+            {
+              "name": "empresaId",
+              "description": "O identificador único da empresa à qual o cliente pertence."
+            },
+            {
+              "name": "clienteId",
+              "description": "O identificador único do cliente."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}/agendamentos/{agendamentoId}",
+        "definition": {
+          "entityName": "Appointment",
+          "schema": {
+            "$ref": "#/backend/entities/Appointment"
+          },
+          "description": "Agendamentos específicos para uma empresa. Inclui `companyId`, `clientId`, `collaboratorId`. Para autorização independente, inclui denormalizado o `ownerId` da empresa-mãe e, se aplicável, o `userId` do cliente logado (como `clientLinkedUserId`).",
+          "params": [
+            {
+              "name": "empresaId",
+              "description": "O identificador único da empresa onde o agendamento foi feito."
+            },
+            {
+              "name": "agendamentoId",
+              "description": "O identificador único do agendamento."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "A estrutura do Firestore foi projetada para garantir segurança, escalabilidade e facilidade de depuração, seguindo rigorosamente os princípios de design fornecidos. Priorizamos a **Independência de Autorização** através da desnormalização de campos-chave, eliminando a necessidade de chamadas `get()` nas regras de segurança, o que otimiza o desempenho e simplifica a lógica de autorização. A **Segregação Estrutural** é aplicada, garantindo que cada coleção e subcoleção possua um perfil de segurança homogêneo, facilitando a aplicação de regras claras.\n\n**Justificativa do Design e QAPs (Consultas Seguras):**\n\n1.  **Perfis de Usuário (`/perfis_usuarios/{userId}`):** Esta coleção armazena dados privados de cada usuário. A independência de autorização é intrínseca aqui, pois o `userId` no caminho corresponde diretamente ao `UID` do usuário autenticado (`request.auth.uid`). Regras de segurança podem ser simples: `allow read, write: if request.auth.uid == userId;`. Para QAPs, um usuário só pode consultar seu próprio perfil, e a query `db.collection('perfis_usuarios').doc(auth.uid)` é eficiente e segura.\n\n2.  **Empresas (`/empresas/{empresaId}`):** Cada documento de empresa contém o campo `ownerId`, que é o `UID` do proprietário. Isso garante a independência de autorização, pois as regras podem verificar diretamente `resource.data.ownerId == request.auth.uid` para acesso de leitura e escrita. Para QAPs, o proprietário pode listar e gerenciar suas empresas com uma consulta como `db.collection('empresas').where('ownerId', '==', auth.uid)`, que é performática e alinha a consulta com as regras de segurança.\n\n3.  **Subcoleções de Empresa (Serviços, Colaboradores, Clientes, Agendamentos):**\n    *   **Desnormalização Crucial:** Para todas as subcoleções (`servicos`, `colaboradores`, `clientes`, `agendamentos`) aninhadas sob `/empresas/{empresaId}/`, o campo `ownerId` da empresa-mãe é **desnormalizado** em cada documento da subcoleção. Isso significa que um documento de `servico` terá tanto seu `companyId` quanto o `ownerId` da `company` à qual pertence. Essa estratégia é **CRÍTICA** para a independência de autorização, pois permite que as regras de segurança para essas subcoleções verifiquem `resource.data.ownerId == request.auth.uid` diretamente no documento sendo acessado, sem precisar fazer uma chamada `get()` para o documento pai em `/empresas/{empresaId}`.\n    *   **Apoio a QAPs:** Com o `ownerId` desnormalizado, as consultas `list` para essas subcoleções podem incluir a cláusula `where('ownerId', '==', request.auth.uid)`. Por exemplo, para listar todos os serviços de uma empresa que o usuário possui: `db.collection('empresas/{empresaId}/servicos').where('ownerId', '==', auth.uid)`. Isso garante que o banco de dados pré-filtre os resultados de forma eficiente, evitando que as regras de segurança atuem como filtros, o que é fundamental para consultas de larga escala.\n\n4.  **Acesso de Clientes a Seus Próprios Dados (`/empresas/{empresaId}/clientes/{clienteId}` e `/empresas/{empresaId}/agendamentos/{agendamentoId}`):**\n    *   **Desnormalização Adicional para Cliente:** No caso de documentos de `clientes` e `agendamentos`, se um cliente tem uma conta de usuário (`UserProfile`), seu `UID` (`userId`) será desnormalizado no documento `cliente` (campo `userId`) e também no documento `agendamento` (campo `clientLinkedUserId`). Isso permite que um cliente autenticado acesse *seus próprios* registros de cliente e agendamentos diretamente, sem `get()` adicionais. As regras de segurança para esses documentos podem ser: `allow read, write: if resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid;` (para cliente) e `allow read: if resource.data.ownerId == request.auth.uid || resource.data.clientLinkedUserId == request.auth.uid;` (para agendamento).\n    *   **Apoio a QAPs para Clientes:** Clientes autenticados podem consultar seus próprios agendamentos com uma query como `db.collection('empresas/{empresaId}/agendamentos').where('clientLinkedUserId', '==', auth.uid)`, o que é eficiente e alinhado com as regras.\n\nEm resumo, a desnormalização do `ownerId` (e `clientLinkedUserId` quando aplicável) em todos os documentos descendentes da empresa é a chave para a independência de autorização e para a criação de regras de segurança simples e robustas, garantindo que as consultas `list` sejam eficientes e seguras (QAPs)."
+  }
+}

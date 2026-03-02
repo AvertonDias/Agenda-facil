@@ -1,0 +1,140 @@
+/**
+ * Firebase Firestore Security Rules
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict ownership and denormalization model to ensure high performance 
+ * and authorization independence. Access is primarily controlled by comparing the authenticated 
+ * user's UID against ownership fields (like 'ownerId' or 'userId') stored directly on the documents.
+ *
+ * Data Structure:
+ * - /perfis_usuarios/{userId}: Private user profiles.
+ * - /empresas/{empresaId}: Root collection for company data (salons, barbershops).
+ * - /empresas/{empresaId}/[subcollections]: Services, collaborators, clients, and appointments.
+ *
+ * Key Security Decisions:
+ * 1. Authorization Independence: Critical fields like 'ownerId' are denormalized into sub-entities 
+ *    (Services, Collaborators, etc.) to allow for fast security checks without calling get() on 
+ *    parent company documents.
+ * 2. Dual-Access for Appointments: Both the company owner (via 'ownerId') and the authenticated 
+ *    client (via 'clientLinkedUserId') are granted access to appointment records.
+ * 3. Strict Prototyping: This ruleset focuses on "Who" can access data rather than "What" the 
+ *    data looks like, allowing for rapid schema iteration while maintaining high security.
+ * 4. Relational Integrity: On creation of company-related documents, the rules enforce that 
+ *    the 'ownerId' matches the creator's UID to prevent data hijacking.
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    /** Checks if the user is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** Checks if the authenticated user's UID matches the provided ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** Checks if the authenticated user is the owner defined in the document's existing data. */
+    function isResourceOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    /** Checks if the authenticated user is the owner defined in the incoming request data. */
+    function isRequestOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    /** Validates that a document exists and the current user is the owner. */
+    function isExistingOwner(ownerId) {
+      return resource != null && isResourceOwner(ownerId);
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for user-specific profile data. Access is strictly limited to the profile owner.
+     * @path /perfis_usuarios/{userId}
+     * @allow (get) If request.auth.uid matches {userId}.
+     * @deny (list) If request.auth.uid does not match {userId}.
+     * @principle Restricts access to a user's own data tree using path-based ownership.
+     */
+    match /perfis_usuarios/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && isRequestOwner(request.resource.data.id);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for company documents. Managed by the user identified in 'ownerId'.
+     * @path /empresas/{empresaId}
+     * @allow (update) If existing ownerId matches request.auth.uid.
+     * @deny (create) If incoming ownerId does not match request.auth.uid.
+     * @principle Enforces document ownership for writes via denormalized ownerId field.
+     */
+    match /empresas/{empresaId} {
+      allow get, list: if isResourceOwner(resource.data.ownerId);
+      allow create: if isRequestOwner(request.resource.data.ownerId);
+      allow update, delete: if isExistingOwner(resource.data.ownerId);
+
+      /**
+       * @description Company services. Access is granted to the company owner via denormalized 'ownerId'.
+       * @path /empresas/{empresaId}/servicos/{servicoId}
+       * @allow (list) If company owner filters by their UID.
+       * @deny (delete) If user is not the company owner.
+       * @principle Uses denormalization for authorization to avoid parent-document lookups.
+       */
+      match /servicos/{servicoId} {
+        allow get, list: if isResourceOwner(resource.data.ownerId);
+        allow create: if isRequestOwner(request.resource.data.ownerId);
+        allow update, delete: if isExistingOwner(resource.data.ownerId);
+      }
+
+      /**
+       * @description Company collaborators. Access is granted to the company owner.
+       * @path /empresas/{empresaId}/colaboradores/{colaboradorId}
+       * @allow (create) If request.resource.data.ownerId matches current user.
+       * @deny (update) If user tries to change the company ownerId.
+       * @principle Protects professional records using owner-only write permissions.
+       */
+      match /colaboradores/{colaboradorId} {
+        allow get, list: if isResourceOwner(resource.data.ownerId);
+        allow create: if isRequestOwner(request.resource.data.ownerId);
+        allow update: if isExistingOwner(resource.data.ownerId) && request.resource.data.ownerId == resource.data.ownerId;
+        allow delete: if isExistingOwner(resource.data.ownerId);
+      }
+
+      /**
+       * @description Company clients. Accessible by the company owner or the logged-in client user.
+       * @path /empresas/{empresaId}/clientes/{clienteId}
+       * @allow (get) If user is the company owner OR if user is the client (matches userId field).
+       * @deny (delete) If user is not the company owner.
+       * @principle Implements Shared Access pattern for owners and specific linked users.
+       */
+      match /clientes/{clienteId} {
+        allow get, list: if isResourceOwner(resource.data.ownerId) || isOwner(resource.data.userId);
+        allow create: if isRequestOwner(request.resource.data.ownerId) || isOwner(request.resource.data.userId);
+        allow update: if isExistingOwner(resource.data.ownerId) || (resource != null && isOwner(resource.data.userId));
+        allow delete: if isExistingOwner(resource.data.ownerId);
+      }
+
+      /**
+       * @description Appointments. Supports company management and client self-service.
+       * @path /empresas/{empresaId}/agendamentos/{agendamentoId}
+       * @allow (list) If user is company owner OR if client is viewing their own appointments.
+       * @deny (create) If a user attempts to book an appointment for a different client UID.
+       * @principle Dual-ownership model ensuring privacy for both business and customer.
+       */
+      match /agendamentos/{agendamentoId} {
+        allow get, list: if isResourceOwner(resource.data.ownerId) || isOwner(resource.data.clientLinkedUserId);
+        allow create: if isRequestOwner(request.resource.data.ownerId) || isOwner(request.resource.data.clientLinkedUserId);
+        allow update, delete: if isExistingOwner(resource.data.ownerId) || (resource != null && isOwner(resource.data.clientLinkedUserId));
+      }
+    }
+  }
+}

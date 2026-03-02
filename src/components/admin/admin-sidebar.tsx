@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -23,7 +24,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -50,7 +50,7 @@ export function AdminSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="p-4 flex flex-row items-center justify-between overflow-hidden">
+      <SidebarHeader className="p-4 flex flex-row items-center justify-between overflow-hidden h-14">
         <div className={cn(
           "flex items-center gap-2 transition-all duration-300",
           state === "collapsed" ? "w-0 opacity-0" : "w-auto opacity-100"
@@ -60,7 +60,6 @@ export function AdminSidebar() {
             AgendaFácil <span className="text-accent">Pro</span>
           </span>
         </div>
-        <SidebarTrigger className="h-8 w-8" />
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-4">

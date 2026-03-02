@@ -79,16 +79,9 @@
           "type": "string",
           "description": "The IANA timezone identifier for the company's location (e.g., 'America/Sao_Paulo')."
         },
-        "openingHours": {
-          "type": "array",
-          "description": "An array of daily opening and closing hours for the company. Each item is an object with 'dayOfWeek' (string, e.g., 'Monday'), 'openTime' (string, HH:mm), 'closeTime' (string, HH:mm), and 'isClosed' (boolean).",
-          "items": {
-            "type": "string"
-          }
-        },
         "ownerId": {
           "type": "string",
-          "description": "Reference to the UserProfile entity of the user who owns or primarily manages this company. (Relationship: UserProfile 1:N Company)"
+          "description": "Reference to the UserProfile entity of the user who owns or primarily manages this company."
         },
         "createdAt": {
           "type": "string",
@@ -104,11 +97,6 @@
       "required": [
         "id",
         "name",
-        "phoneNumber",
-        "address",
-        "plan",
-        "timezone",
-        "openingHours",
         "ownerId",
         "createdAt",
         "updatedAt"
@@ -118,19 +106,19 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Service",
       "type": "object",
-      "description": "Represents a service offered by a company (e.g., haircut, manicure).",
+      "description": "Represents a service offered by a company.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the Service entity."
         },
-        "companyId": {
+        "ownerId": {
           "type": "string",
-          "description": "Reference to the Company entity that offers this service. (Relationship: Company 1:N Service)"
+          "description": "Reference to the owner UID."
         },
         "name": {
           "type": "string",
-          "description": "The name of the service (e.g., 'Corte Masculino', 'Manicure')."
+          "description": "The name of the service."
         },
         "durationMinutes": {
           "type": "number",
@@ -140,22 +128,17 @@
           "type": "number",
           "description": "The base price of the service."
         },
-        "bufferMinutes": {
-          "type": "number",
-          "description": "Additional buffer time in minutes required after the service before the next appointment can start."
-        },
         "isActive": {
           "type": "boolean",
-          "description": "Indicates if the service is currently active and available for booking."
+          "description": "Indicates if the service is active."
         }
       },
       "required": [
         "id",
-        "companyId",
+        "ownerId",
         "name",
         "durationMinutes",
         "basePrice",
-        "bufferMinutes",
         "isActive"
       ]
     },
@@ -163,15 +146,15 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Collaborator",
       "type": "object",
-      "description": "Represents a professional working for a company, capable of performing services.",
+      "description": "Represents a professional working for a company.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the Collaborator entity."
         },
-        "companyId": {
+        "ownerId": {
           "type": "string",
-          "description": "Reference to the Company entity this collaborator works for. (Relationship: Company 1:N Collaborator)"
+          "description": "Reference to the owner UID."
         },
         "name": {
           "type": "string",
@@ -179,164 +162,29 @@
         },
         "phoneNumber": {
           "type": "string",
-          "description": "The contact phone number for the collaborator."
+          "description": "The contact phone number."
+        },
+        "role": {
+          "type": "string",
+          "description": "The professional role."
         },
         "offeredServiceIds": {
           "type": "array",
-          "description": "References to Service entities that this collaborator is qualified to perform. (Relationship: Service N:N Collaborator)",
           "items": {
             "type": "string"
-          }
-        },
-        "weeklySchedule": {
-          "type": "array",
-          "description": "The weekly availability schedule for the collaborator. Each item is an object with 'dayOfWeek' (string, e.g., 'Monday'), 'startTime' (string, HH:mm), 'endTime' (string, HH:mm), and 'isAvailable' (boolean).",
-          "items": {
-            "type": "string"
-          }
+          },
+          "description": "List of service IDs performed by this collaborator."
         },
         "isActive": {
           "type": "boolean",
-          "description": "Indicates if the collaborator is currently active and available for appointments."
-        },
-        "commissionPercentage": {
-          "type": "number",
-          "description": "The percentage of commission the collaborator receives for services performed."
+          "description": "Indicates if active."
         }
       },
       "required": [
         "id",
-        "companyId",
+        "ownerId",
         "name",
-        "phoneNumber",
-        "offeredServiceIds",
-        "weeklySchedule",
-        "isActive",
-        "commissionPercentage"
-      ]
-    },
-    "Client": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Client",
-      "type": "object",
-      "description": "Represents a customer who books services with a company. Can be an anonymous client or a logged-in user.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Client entity."
-        },
-        "companyId": {
-          "type": "string",
-          "description": "Reference to the Company entity this client is associated with. (Relationship: Company 1:N Client)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the client."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "The contact phone number of the client."
-        },
-        "appointmentIds": {
-          "type": "array",
-          "description": "References to past or future Appointment entities associated with this client. (Relationship: Client 1:N Appointment)",
-          "items": {
-            "type": "string"
-          }
-        },
-        "reliabilityIndex": {
-          "type": "number",
-          "description": "A numerical index indicating the client's reliability (e.g., for cancellations, no-shows)."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the UserProfile entity if this client has an associated login account. (Relationship: UserProfile 1:1 Client)"
-        }
-      },
-      "required": [
-        "id",
-        "companyId",
-        "name",
-        "phoneNumber"
-      ]
-    },
-    "Appointment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Appointment",
-      "type": "object",
-      "description": "Represents a scheduled booking for one or more services with a specific collaborator for a client.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Appointment entity."
-        },
-        "companyId": {
-          "type": "string",
-          "description": "Reference to the Company entity where this appointment is booked. (Relationship: Company 1:N Appointment)"
-        },
-        "clientName": {
-          "type": "string",
-          "description": "The name of the client for this appointment."
-        },
-        "clientPhoneNumber": {
-          "type": "string",
-          "description": "The phone number of the client for this appointment."
-        },
-        "serviceIds": {
-          "type": "array",
-          "description": "References to Service entities included in this appointment. (Relationship: Service N:N Appointment)",
-          "items": {
-            "type": "string"
-          }
-        },
-        "collaboratorId": {
-          "type": "string",
-          "description": "Reference to the Collaborator entity assigned to this appointment. (Relationship: Collaborator 1:N Appointment)"
-        },
-        "startUtc": {
-          "type": "string",
-          "description": "The UTC timestamp when the appointment is scheduled to start.",
-          "format": "date-time"
-        },
-        "endUtc": {
-          "type": "string",
-          "description": "The UTC timestamp when the appointment is scheduled to end.",
-          "format": "date-time"
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the appointment (e.g., 'pending', 'confirmed', 'canceled', 'completed')."
-        },
-        "clientConfirmed": {
-          "type": "boolean",
-          "description": "Indicates if the client has explicitly confirmed the appointment via a reminder."
-        },
-        "reminder24hSent": {
-          "type": "boolean",
-          "description": "Indicates if the 24-hour reminder message has been sent."
-        },
-        "reminder3hSent": {
-          "type": "boolean",
-          "description": "Indicates if the 3-hour reminder message has been sent."
-        },
-        "clientId": {
-          "type": "string",
-          "description": "Reference to the Client entity if this appointment is associated with a registered client. (Relationship: Client 1:N Appointment)"
-        }
-      },
-      "required": [
-        "id",
-        "companyId",
-        "clientName",
-        "clientPhoneNumber",
-        "serviceIds",
-        "collaboratorId",
-        "startUtc",
-        "endUtc",
-        "status",
-        "clientConfirmed",
-        "reminder24hSent",
-        "reminder3hSent"
+        "isActive"
       ]
     }
   },
@@ -355,8 +203,34 @@
           "entityName": "UserProfile",
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Armazena informações de perfil adicionais para usuários autenticados via Firebase. O `userId` corresponde ao UID de autenticação. Acesso exclusivo do proprietário do perfil."
+          }
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}",
+        "definition": {
+          "entityName": "Company",
+          "schema": {
+            "$ref": "#/backend/entities/Company"
+          }
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}/servicos/{servicoId}",
+        "definition": {
+          "entityName": "Service",
+          "schema": {
+            "$ref": "#/backend/entities/Service"
+          }
+        }
+      },
+      {
+        "path": "/empresas/{empresaId}/colaboradores/{colaboradorId}",
+        "definition": {
+          "entityName": "Collaborator",
+          "schema": {
+            "$ref": "#/backend/entities/Collaborator"
+          }
         }
       }
     ]

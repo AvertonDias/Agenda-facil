@@ -8,18 +8,19 @@ import {
   TrendingUp,
   Clock,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function AdminDashboard() {
   const { user } = useUser();
   const db = useFirestore();
 
-  // Queries para dados reais
+  // Queries para dados reais do Firestore
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -43,7 +44,7 @@ export default function AdminDashboard() {
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);
 
-  // Cálculos básicos baseados nos dados
+  // Cálculos básicos baseados nos dados reais
   const totalFaturamento = appointments?.reduce((acc, apt) => {
     const service = services?.find(s => s.id === apt.serviceId);
     return acc + (service?.basePrice || 0);
@@ -51,7 +52,7 @@ export default function AdminDashboard() {
 
   const stats = [
     { 
-      label: "Agendamentos", 
+      label: "Agendamentos Hoje", 
       value: appointments?.length.toString() || "0", 
       icon: CalendarIcon, 
       color: "text-blue-500", 
@@ -90,9 +91,17 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Olá, {user?.displayName?.split(' ')[0]} 👋</h1>
-        <p className="text-muted-foreground">Aqui está o resumo do seu estabelecimento hoje.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Olá, {user?.displayName?.split(' ')[0]} 👋</h1>
+          <p className="text-muted-foreground">Aqui está o resumo do seu estabelecimento hoje.</p>
+        </div>
+        <Link href="/admin/agenda">
+          <Button className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Agendamento
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -123,33 +132,38 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {appointments?.map((apt) => {
-                const service = services?.find(s => s.id === apt.serviceId);
-                const employee = collaborators?.find(e => e.id === apt.employeeId);
-                return (
-                  <div key={apt.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-secondary">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-primary border">
-                        {apt.time}
+              {appointments && appointments.length > 0 ? (
+                appointments.map((apt) => {
+                  const service = services?.find(s => s.id === apt.serviceId);
+                  const employee = collaborators?.find(e => e.id === apt.employeeId);
+                  return (
+                    <div key={apt.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-secondary transition-hover hover:border-primary/50">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-primary border shadow-sm">
+                          {apt.time}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{apt.clientName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {service?.name || 'Serviço'} com {employee?.name || 'Profissional'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">{apt.clientName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {service?.name || 'Serviço'} com {employee?.name || 'Profissional'}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-2 py-1 rounded-full uppercase font-bold ${apt.status === 'confirmado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {apt.status || 'pendente'}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] px-2 py-1 rounded-full uppercase font-bold ${apt.status === 'confirmado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {apt.status || 'pendente'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              {(!appointments || appointments.length === 0) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  Nenhum agendamento para hoje.
+                  )
+                })
+              ) : (
+                <div className="text-center py-12 flex flex-col items-center justify-center space-y-3">
+                  <CalendarIcon className="w-12 h-12 text-muted-foreground/20" />
+                  <p className="text-muted-foreground">Nenhum agendamento para hoje.</p>
+                  <Link href="/admin/agenda">
+                    <Button variant="outline" size="sm">Ir para Agenda</Button>
+                  </Link>
                 </div>
               )}
             </div>
@@ -167,12 +181,15 @@ export default function AdminDashboard() {
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
               <p className="text-sm font-medium text-primary mb-1">Capacidade de Atendimento</p>
               <p className="font-bold">{collaborators?.length || 0} Profissionais</p>
-              <p className="text-xs text-muted-foreground">Disponíveis para agendamento</p>
+              <p className="text-xs text-muted-foreground">Disponíveis no momento</p>
             </div>
             <div className="p-4 bg-accent/5 rounded-lg border border-accent/10">
               <p className="text-sm font-medium text-accent mb-1">Catálogo</p>
               <p className="font-bold">{services?.length || 0} Serviços</p>
-              <p className="text-xs text-muted-foreground">Cadastrados no sistema</p>
+              <p className="text-xs text-muted-foreground">Configurados para venda</p>
+            </div>
+            <div className="bg-secondary/20 p-4 rounded-lg border border-dashed text-center">
+              <p className="text-xs text-muted-foreground">Dica: Complete seu catálogo para atrair mais clientes.</p>
             </div>
           </CardContent>
         </Card>

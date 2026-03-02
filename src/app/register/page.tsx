@@ -49,7 +49,7 @@ export default function RegisterPage() {
         updatedAt: serverTimestamp(),
       });
 
-      // 2. Criar Documento da Empresa inicial (Crucial para evitar erros de permissão)
+      // 2. Criar Documento da Empresa inicial (Crucial para as regras de segurança funcionarem)
       await setDoc(doc(db, 'empresas', newUser.uid), {
         id: newUser.uid,
         name: name,

@@ -1,45 +1,38 @@
 /**
- * Firebase Firestore Security Rules
- *
- * Core Philosophy:
- * This ruleset enforces a strict ownership model. Access to company data
- * is granted if the company ID in the path matches the authenticated user's UID.
+ * Firebase Firestore Security Rules - AgendaFácil Pro
+ * 
+ * Modelo de segurança baseado em caminho (Path-based ownership).
+ * O usuário tem acesso total a documentos onde o ID ou o caminho contém seu UID.
  */
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- GLOBAL HELPER FUNCTIONS ---
-
+    // Helper para verificar se o usuário está logado
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // --- COLLECTION RULES ---
-
-    // Perfis de usuários: Apenas o próprio usuário pode acessar seu perfil
+    // Regra para Perfis de Usuários
     match /perfis_usuarios/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Empresas e suas subcoleções: 
-    // O dono (UID correspondente ao ID do documento) tem acesso total à sua árvore de dados.
+    // Regras para Empresas e todas as suas subcoleções (servicos, colaboradores, agendamentos)
+    // Usamos o empresaId como o UID do dono para simplificar a verificação de permissão.
     match /empresas/{empresaId} {
-      allow read, write: if isOwner(empresaId);
-
-      // Permite acesso recursivo a todas as subcoleções (servicos, colaboradores, agendamentos, etc.)
+      allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+      
+      // Permite acesso a qualquer documento em qualquer subcoleção dentro desta empresa
       match /{allSubcollections=**} {
-        allow read, write: if isOwner(empresaId);
+        allow read, write: if isSignedIn() && request.auth.uid == empresaId;
       }
     }
     
-    // Suporte para consultas públicas (ex: página de agendamento do cliente)
-    // No futuro, você pode adicionar regras específicas aqui se quiser que clientes
-    // listem serviços sem estarem logados.
+    // Regra global de segurança (bloqueia tudo que não foi explicitamente permitido)
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

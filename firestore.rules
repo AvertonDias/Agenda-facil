@@ -15,10 +15,14 @@ service cloud.firestore {
 
     // 3. Regra para QUALQUER coisa dentro de uma empresa (Subcoleções)
     // O curinga {anything=**} aplicado após o ID da empresa garante 
-    // acesso total a agendamentos, servicos, colaboradores, etc.
-    // Esta regra cobre operações de 'get', 'list', 'create', 'update' e 'delete'
+    // acesso total a agendamentos, servicos, etc.
     match /empresas/{empresaId}/{anything=**} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
+    }
+    
+    // Bloqueio preventivo para outras coleções
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

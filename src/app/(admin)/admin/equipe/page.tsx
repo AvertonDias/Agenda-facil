@@ -44,7 +44,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminEquipe() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,14 +58,14 @@ export default function AdminEquipe() {
 
   // Queries
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user]);
+  }, [db, user?.uid, isUserLoading]);
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
   const { data: services } = useCollection(servicesQuery);
@@ -141,7 +141,7 @@ export default function AdminEquipe() {
         </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{editingCollaborator ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
             </DialogHeader>
@@ -188,7 +188,7 @@ export default function AdminEquipe() {
         </Dialog>
       </div>
 
-      {loadingColabs ? (
+      {(loadingColabs || isUserLoading) ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-10 h-10 animate-spin text-primary" />
         </div>
@@ -210,10 +210,7 @@ export default function AdminEquipe() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          handleOpenDialog(employee);
-                        }} 
+                        onClick={() => handleOpenDialog(employee)} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar

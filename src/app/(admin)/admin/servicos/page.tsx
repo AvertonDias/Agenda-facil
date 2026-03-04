@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function AdminServices() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,9 +45,9 @@ export default function AdminServices() {
   const [price, setPrice] = useState("0");
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: services, isLoading } = useCollection(servicesQuery);
 
@@ -115,7 +115,7 @@ export default function AdminServices() {
         </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingService ? "Editar Serviço" : "Novo Serviço"}</DialogTitle>
             </DialogHeader>
@@ -152,7 +152,7 @@ export default function AdminServices() {
         />
       </div>
 
-      {isLoading ? (
+      {(isLoading || isUserLoading) ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-10 h-10 animate-spin text-primary" />
         </div>
@@ -173,10 +173,7 @@ export default function AdminServices() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          handleOpenDialog(service);
-                        }} 
+                        onClick={() => handleOpenDialog(service)} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar

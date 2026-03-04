@@ -12,18 +12,47 @@ import {
   Loader2, 
   CalendarDays, 
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  Phone,
+  Check
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAgenda() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
+
+  // Estados do Modal de Novo Agendamento
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [selectedService, setSelectedService] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Queries protegidas e memoizadas
   const servicesQuery = useMemoFirebase(() => {
@@ -51,6 +80,58 @@ export default function AdminAgenda() {
 
   const isInitialLoading = isUserLoading || loadingApts;
 
+  const handleCreateAppointment = () => {
+    if (!user || !date || !clientName || !selectedService || !selectedEmployee || !selectedTime) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos do agendamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const dateStr = format(date, 'yyyy-MM-dd');
+    
+    const appointmentData = {
+      clientName,
+      clientPhone,
+      serviceId: selectedService,
+      employeeId: selectedEmployee,
+      date: dateStr,
+      time: selectedTime,
+      status: 'confirmado',
+      createdAt: new Date().toISOString(),
+    };
+
+    const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
+    
+    addDocumentNonBlocking(appointmentsRef, appointmentData)
+      .then(() => {
+        toast({
+          title: "Agendamento realizado!",
+          description: `Cliente ${clientName} agendado com sucesso.`,
+        });
+        setIsDialogOpen(false);
+        resetForm();
+      })
+      .finally(() => setIsSubmitting(false));
+  };
+
+  const resetForm = () => {
+    setClientName("");
+    setClientPhone("");
+    setSelectedService("");
+    setSelectedEmployee("");
+    setSelectedTime("");
+  };
+
+  const timeSlots = [
+    "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+    "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+    "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+  ];
+
   return (
     <div className="h-full flex flex-col space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -61,11 +142,101 @@ export default function AdminAgenda() {
           </h1>
           <p className="text-muted-foreground">Visualize e organize seus atendimentos diários.</p>
         </div>
-        <Button className="gap-2 shadow-lg hover:shadow-xl transition-all">
+        <Button 
+          className="gap-2 shadow-lg hover:shadow-xl transition-all"
+          onClick={() => setIsDialogOpen(true)}
+        >
           <Plus className="w-4 h-4" />
           Agendar Cliente
         </Button>
       </div>
+
+      {/* Modal de Novo Agendamento */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-primary" />
+              Novo Agendamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientName">Nome do Cliente</Label>
+                <Input 
+                  id="clientName" 
+                  value={clientName} 
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="Ex: João Silva" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone">Telefone</Label>
+                <Input 
+                  id="clientPhone" 
+                  value={clientPhone} 
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="(11) 99999-9999" 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Serviço</Label>
+                <Select onValueChange={setSelectedService} value={selectedService}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services?.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Profissional</Label>
+                <Select onValueChange={setSelectedEmployee} value={selectedEmployee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collaborators?.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Horário Disponível (para {date ? format(date, "dd/MM") : ""})</Label>
+              <div className="grid grid-cols-4 gap-2 h-[120px] overflow-y-auto p-2 border rounded-md bg-secondary/10">
+                {timeSlots.map(time => (
+                  <Button
+                    key={time}
+                    variant={selectedTime === time ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setSelectedTime(time)}
+                  >
+                    {time}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateAppointment} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+              Confirmar Agendamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1">
         {/* Lado Esquerdo: Seletor de Data */}
@@ -110,7 +281,7 @@ export default function AdminAgenda() {
                   <CardTitle className="text-xl">
                     {date ? format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }) : 'Selecione uma data'}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">Horários de hoje</p>
+                  <p className="text-sm text-muted-foreground">Horários agendados</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setDate(new Date())}>Hoje</Button>
@@ -151,7 +322,10 @@ export default function AdminAgenda() {
                               <div className="flex justify-between items-start">
                                 <div>
                                   <h4 className="text-lg font-bold leading-none">{apt.clientName}</h4>
-                                  <p className="text-sm text-muted-foreground mt-1">{apt.clientPhone}</p>
+                                  <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                                    <Phone className="w-3 h-3" />
+                                    {apt.clientPhone || "Sem telefone"}
+                                  </p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className={cn(
@@ -170,7 +344,9 @@ export default function AdminAgenda() {
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40">
                                   <Scissors className="w-4 h-4 text-primary" />
                                   <span className="truncate">{service?.name || 'Serviço'}</span>
-                                  <span className="ml-auto font-bold text-foreground">R$ {service?.basePrice?.toFixed(2)}</span>
+                                  <span className="ml-auto font-bold text-foreground">
+                                    {service?.basePrice ? `R$ ${service.basePrice.toFixed(2)}` : '--'}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40">
                                   <User className="w-4 h-4 text-accent" />
@@ -191,7 +367,11 @@ export default function AdminAgenda() {
                       <p className="text-muted-foreground max-w-[250px] mt-2">
                         Nenhum agendamento marcado para o dia selecionado.
                       </p>
-                      <Button variant="outline" className="mt-6 gap-2 border-dashed">
+                      <Button 
+                        variant="outline" 
+                        className="mt-6 gap-2 border-dashed"
+                        onClick={() => setIsDialogOpen(true)}
+                      >
                         <Plus className="w-4 h-4" /> Criar Primeiro Horário
                       </Button>
                     </div>

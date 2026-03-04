@@ -84,8 +84,8 @@ export default function AdminEquipe() {
       setPhone("");
       setSelectedServices([]);
     }
-    // Pequeno delay para evitar conflito de foco com o DropdownMenu
-    setTimeout(() => setIsDialogOpen(true), 100);
+    // Delay para garantir fechamento do menu antes da abertura do modal
+    setTimeout(() => setIsDialogOpen(true), 150);
   };
 
   const handleSubmit = () => {
@@ -211,19 +211,13 @@ export default function AdminEquipe() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          handleOpenDialog(employee);
-                        }} 
+                        onSelect={() => handleOpenDialog(employee)} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          handleDelete(employee.id);
-                        }} 
+                        onSelect={() => handleDelete(employee.id)} 
                         className="gap-2 text-destructive"
                       >
                         <Trash2 className="w-4 h-4" /> Remover

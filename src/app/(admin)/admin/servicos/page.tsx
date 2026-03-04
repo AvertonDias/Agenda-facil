@@ -67,8 +67,9 @@ export default function AdminServices() {
       setDuration("30");
       setPrice("0");
     }
-    // Pequeno delay para evitar conflito de foco com o DropdownMenu
-    setTimeout(() => setIsDialogOpen(true), 100);
+    // Delay estratégico para garantir que o DropdownMenu feche antes do Dialog abrir
+    // Isso evita o travamento de pointer-events na UI
+    setTimeout(() => setIsDialogOpen(true), 150);
   };
 
   const handleSubmit = () => {
@@ -174,19 +175,13 @@ export default function AdminServices() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          handleOpenDialog(service);
-                        }} 
+                        onSelect={() => handleOpenDialog(service)} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          handleDelete(service.id);
-                        }} 
+                        onSelect={() => handleDelete(service.id)} 
                         className="gap-2 text-destructive"
                       >
                         <Trash2 className="w-4 h-4" /> Remover

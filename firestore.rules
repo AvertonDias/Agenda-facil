@@ -7,18 +7,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // 2. Regra para o DOCUMENTO da Empresa
+    // 2. Regra para Empresas e todas as suas Subcoleções
+    // Esta estrutura aninhada é a mais robusta para garantir que o dono
+    // tenha acesso total (incluindo listagem) a agendamentos, serviços, etc.
     match /empresas/{empresaId} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
-    }
-
-    // 3. Regra para QUALQUER subcoleção dentro de uma empresa
-    // O curinga {anything=**} garante que o dono tenha acesso total a agendamentos, servicos, etc.
-    match /empresas/{empresaId}/{anything=**} {
-      allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      
+      match /{allPaths=**} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
     }
     
-    // Bloqueio preventivo para outras coleções
+    // Bloqueio padrão para qualquer outra coleção não mapeada
     match /{document=**} {
       allow read, write: if false;
     }

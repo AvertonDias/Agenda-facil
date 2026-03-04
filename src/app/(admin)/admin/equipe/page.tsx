@@ -56,16 +56,16 @@ export default function AdminEquipe() {
   const [phone, setPhone] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-  // Queries
+  // Queries protegidas
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user?.uid]);
+  }, [db, user?.uid, isUserLoading]);
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user?.uid]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
   const { data: services } = useCollection(servicesQuery);
@@ -84,8 +84,8 @@ export default function AdminEquipe() {
       setPhone("");
       setSelectedServices([]);
     }
-    // Delay para garantir fechamento do menu antes da abertura do modal
-    setTimeout(() => setIsDialogOpen(true), 150);
+    // Delay de 200ms para garantir que o menu se feche completamente antes de abrir o Dialog, evitando UI freeze
+    setTimeout(() => setIsDialogOpen(true), 200);
   };
 
   const handleSubmit = () => {
@@ -212,7 +212,7 @@ export default function AdminEquipe() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
                         onSelect={(e) => {
-                          e.preventDefault();
+                          e.preventDefault(); // Previne fechamento abrupto que trava o foco
                           handleOpenDialog(employee);
                         }} 
                         className="gap-2"

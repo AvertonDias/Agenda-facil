@@ -8,14 +8,16 @@ service cloud.firestore {
     }
 
     // 2. Regra para o DOCUMENTO da Empresa
+    // Permite que a empresa acesse seus próprios dados básicos
     match /empresas/{empresaId} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
     }
 
-    // 3. Regra para QUALQUER subcoleção ou documento dentro de uma empresa
-    // O curinga recursivo {allPaths=**} garante que agendamentos, servicos, 
-    // colaboradores, etc., sejam acessíveis se o UID do usuário for igual ao ID da empresa pai.
-    match /empresas/{empresaId}/{allPaths=**} {
+    // 3. Regra para QUALQUER coisa dentro de uma empresa (Subcoleções)
+    // O curinga {anything=**} aplicado após o ID da empresa garante 
+    // acesso total a agendamentos, servicos, colaboradores, etc.
+    // Isso resolve o erro de permissão na operação 'list'.
+    match /empresas/{empresaId}/{anything=**} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
     }
     

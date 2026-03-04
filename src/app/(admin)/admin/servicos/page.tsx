@@ -45,9 +45,9 @@ export default function AdminServices() {
   const [price, setPrice] = useState("0");
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user?.uid]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: services, isLoading } = useCollection(servicesQuery);
 
@@ -67,8 +67,8 @@ export default function AdminServices() {
       setDuration("30");
       setPrice("0");
     }
-    // Delay estratégico para garantir que o DropdownMenu feche antes do Dialog abrir
-    setTimeout(() => setIsDialogOpen(true), 150);
+    // Delay estratégico para garantir que o DropdownMenu feche antes do Dialog abrir, prevenindo UI freeze
+    setTimeout(() => setIsDialogOpen(true), 200);
   };
 
   const handleSubmit = () => {
@@ -175,7 +175,7 @@ export default function AdminServices() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
                         onSelect={(e) => {
-                          e.preventDefault();
+                          e.preventDefault(); // Previne fechamento abrupto que trava o foco
                           handleOpenDialog(service);
                         }} 
                         className="gap-2"

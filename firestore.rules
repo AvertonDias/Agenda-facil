@@ -12,16 +12,32 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Hierarquia de Empresas: O dono (empresaId == auth.uid) tem acesso total
+    // Regras explícitas para Empresas e suas subcoleções
+    // O dono (empresaId == auth.uid) tem acesso total
+    
+    // 1. Documento da Empresa
     match /empresas/{empresaId} {
-      // Permite ler/escrever o documento da empresa
       allow read, write: if isSignedIn() && request.auth.uid == empresaId;
-      
-      // Permite ler/escrever em qualquer subcoleção ou documento abaixo da empresa
-      // O uso de {allSubcollections=**} é a forma mais eficaz de garantir permissões de 'list'
-      match /{allSubcollections=**} {
-        allow read, write: if isSignedIn() && request.auth.uid == empresaId;
-      }
+    }
+
+    // 2. Subcoleção de Agendamentos (Onde ocorria o erro de listagem)
+    match /empresas/{empresaId}/agendamentos/{docId} {
+      allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+    }
+
+    // 3. Subcoleção de Serviços
+    match /empresas/{empresaId}/servicos/{docId} {
+      allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+    }
+
+    // 4. Subcoleção de Colaboradores
+    match /empresas/{empresaId}/colaboradores/{docId} {
+      allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+    }
+
+    // Backup para qualquer outra subcoleção futura
+    match /empresas/{empresaId}/{allSubcollections=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == empresaId;
     }
   }
 }

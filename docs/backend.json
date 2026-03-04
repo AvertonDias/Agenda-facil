@@ -65,8 +65,8 @@
         "clientPhone": { "type": "string" },
         "serviceId": { "type": "string" },
         "employeeId": { "type": "string" },
-        "date": { "type": "string", "description": "Formato YYYY-MM-DD" },
-        "time": { "type": "string", "description": "Formato HH:mm" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
         "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado"] }
       },
       "required": ["id", "clientName", "serviceId", "employeeId", "date", "time"]

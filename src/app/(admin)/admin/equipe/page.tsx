@@ -84,7 +84,7 @@ export default function AdminEquipe() {
       setPhone("");
       setSelectedServices([]);
     }
-    // Delay de 200ms para garantir que o menu se feche completamente antes de abrir o Dialog, evitando UI freeze
+    // Atraso de 200ms para garantir que o menu feche completamente antes de abrir o Dialog, evitando UI freeze
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 

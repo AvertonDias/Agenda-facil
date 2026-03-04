@@ -12,7 +12,7 @@ import {
   Plus
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, limit } from "firebase/firestore";
+import { collection, query, limit } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -20,13 +20,13 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries protegidas por check rigoroso de usuário
+  // Queries simplificadas para evitar erros de índice/permissão durante o carregamento inicial
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
+    // Removido o orderBy temporariamente para testar permissão básica sem necessidade de índice
     return query(
       collection(db, "empresas", user.uid, "agendamentos"),
-      orderBy("time", "asc"),
-      limit(5)
+      limit(10)
     );
   }, [db, user?.uid, isUserLoading]);
 
@@ -54,14 +54,14 @@ export default function AdminDashboard() {
 
   const stats = [
     { 
-      label: "Agendamentos Hoje", 
+      label: "Agendamentos", 
       value: appointments?.length.toString() || "0", 
       icon: CalendarIcon, 
       color: "text-blue-500", 
       bg: "bg-blue-50" 
     },
     { 
-      label: "Faturamento Previsto", 
+      label: "Faturamento", 
       value: `R$ ${totalFaturamento.toFixed(2)}`, 
       icon: DollarSign, 
       color: "text-green-600", 
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-12 flex flex-col items-center justify-center space-y-3">
                   <CalendarIcon className="w-12 h-12 text-muted-foreground/20" />
-                  <p className="text-muted-foreground">Nenhum agendamento para hoje.</p>
+                  <p className="text-muted-foreground">Nenhum agendamento encontrado.</p>
                   <Link href="/admin/agenda">
                     <Button variant="outline" size="sm">Ir para Agenda</Button>
                   </Link>
@@ -191,7 +191,7 @@ export default function AdminDashboard() {
               <p className="text-xs text-muted-foreground">Configurados para venda</p>
             </div>
             <div className="bg-secondary/20 p-4 rounded-lg border border-dashed text-center">
-              <p className="text-xs text-muted-foreground">Dica: Complete seu catálogo para atrair mais clientes.</p>
+              <p className="text-xs text-muted-foreground">Dica: Adicione mais serviços para atrair clientes.</p>
             </div>
           </CardContent>
         </Card>

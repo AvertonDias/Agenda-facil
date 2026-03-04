@@ -67,7 +67,7 @@ export default function AdminServices() {
       setDuration("30");
       setPrice("0");
     }
-    // Delay estratégico para garantir que o DropdownMenu feche antes do Dialog abrir, prevenindo UI freeze
+    // Atraso estratégico para garantir que o DropdownMenu feche antes do Dialog abrir, prevenindo UI freeze
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 

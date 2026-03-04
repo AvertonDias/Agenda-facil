@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Clock, User, Scissors, Loader2 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { format } from "date-fns";
 
 export default function AdminAgenda() {
@@ -15,7 +15,7 @@ export default function AdminAgenda() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries protegidas por check rigoroso de usuário e loading
+  // Queries protegidas e simplificadas
   const servicesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
@@ -29,10 +29,10 @@ export default function AdminAgenda() {
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || !date || isUserLoading) return null;
     const dateStr = format(date, 'yyyy-MM-dd');
+    // Removido o orderBy temporariamente para evitar necessidade de índices compostos iniciais
     return query(
       collection(db, "empresas", user.uid, "agendamentos"),
-      where("date", "==", dateStr),
-      orderBy("time", "asc")
+      where("date", "==", dateStr)
     );
   }, [db, user?.uid, date, isUserLoading]);
 

@@ -2,26 +2,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Regra para Perfis de Usuários
+    // Regra para perfis de usuários
     match /perfis_usuarios/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // 2. Regra para o DOCUMENTO da Empresa
-    // Permite que a empresa acesse seus próprios dados básicos
+    // Regra para Empresas e suas Subcoleções
     match /empresas/{empresaId} {
+      // Permite ler/escrever o documento da própria empresa
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
-    }
 
-    // 3. Regra para QUALQUER coisa dentro de uma empresa (Subcoleções)
-    // O curinga {anything=**} aplicado após o ID da empresa garante 
-    // acesso total a agendamentos, servicos, colaboradores, etc.
-    // Isso resolve o erro de permissão na operação 'list'.
-    match /empresas/{empresaId}/{anything=**} {
-      allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      // Regra ULTRA-EXPLÍCITA para agendamentos
+      // 'read' cobre 'get' e 'list'
+      match /agendamentos/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+
+      // Regra ULTRA-EXPLÍCITA para servicos
+      match /servicos/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+
+      // Regra ULTRA-EXPLÍCITA para colaboradores
+      match /colaboradores/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+
+      // Cobertura recursiva para qualquer outra subcoleção futura
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
     }
     
-    // Bloqueio padrão para segurança
+    // Bloqueio preventivo padrão
     match /{document=**} {
       allow read, write: if false;
     }

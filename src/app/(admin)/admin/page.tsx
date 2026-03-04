@@ -93,7 +93,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Olá, {user?.displayName?.split(' ')[0]} 👋</h1>
+          <h1 className="text-3xl font-bold text-foreground">Olá, {user?.displayName?.split(' ')[0] || 'Administrador'} 👋</h1>
           <p className="text-muted-foreground">Aqui está o resumo do seu estabelecimento hoje.</p>
         </div>
         <Link href="/admin/agenda">

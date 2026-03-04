@@ -1,7 +1,8 @@
 /**
  * Firebase Firestore Security Rules - AgendaFácil Pro
  * 
- * Regras simplificadas e robustas para garantir acesso total ao proprietário.
+ * Regras explícitas para garantir que o dono da empresa tenha acesso total
+ * aos seus próprios dados e subcoleções.
  */
 
 rules_version = '2';
@@ -18,12 +19,26 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Hierarquia de Empresas: O dono (UID == empresaId) tem acesso total e recursivo
-    // a tudo que estiver dentro do caminho da sua empresa.
+    // Hierarquia de Empresas
     match /empresas/{empresaId} {
+      // O dono tem acesso ao documento da empresa
       allow read, write: if isSignedIn() && request.auth.uid == empresaId;
       
-      // Permite acesso total a qualquer documento ou subcoleção dentro da empresa
+      // O dono tem acesso explícito às subcoleções (serviços, colaboradores, agendamentos)
+      // O uso de allow read permite as operações 'get' e 'list'
+      match /servicos/{docId} {
+        allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+      }
+      
+      match /colaboradores/{docId} {
+        allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+      }
+      
+      match /agendamentos/{docId} {
+        allow read, write: if isSignedIn() && request.auth.uid == empresaId;
+      }
+
+      // Fallback para qualquer outra subcoleção futura
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && request.auth.uid == empresaId;
       }

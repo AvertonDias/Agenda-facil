@@ -17,32 +17,34 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function AdminDashboard() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries para dados reais do Firestore
+  // Queries protegidas por check de usuário
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || isUserLoading) return null;
     return query(
       collection(db, "empresas", user.uid, "agendamentos"),
       orderBy("time", "asc"),
       limit(5)
     );
-  }, [db, user]);
+  }, [db, user, isUserLoading]);
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user]);
+  }, [db, user, isUserLoading]);
 
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user]);
+  }, [db, user, isUserLoading]);
 
   const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
-  const { data: services } = useCollection(servicesQuery);
-  const { data: collaborators } = useCollection(collaboratorsQuery);
+  const { data: services, isLoading: loadingServices } = useCollection(servicesQuery);
+  const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
+
+  const isInitialLoading = isUserLoading || loadingApts || loadingServices || loadingColabs;
 
   // Cálculos básicos baseados nos dados reais
   const totalFaturamento = appointments?.reduce((acc, apt) => {
@@ -81,7 +83,7 @@ export default function AdminDashboard() {
     },
   ];
 
-  if (loadingApts) {
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

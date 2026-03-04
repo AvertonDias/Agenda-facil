@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Clock, User, Scissors, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Clock, User, Scissors, Loader2 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy } from "firebase/firestore";
@@ -12,33 +12,35 @@ import { format } from "date-fns";
 
 export default function AdminAgenda() {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries
+  // Queries protegidas por check de usuário e loading
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user]);
+  }, [db, user, isUserLoading]);
 
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user]);
+  }, [db, user, isUserLoading]);
 
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !date) return null;
+    if (!db || !user || !date || isUserLoading) return null;
     const dateStr = format(date, 'yyyy-MM-dd');
     return query(
       collection(db, "empresas", user.uid, "agendamentos"),
       where("date", "==", dateStr),
       orderBy("time", "asc")
     );
-  }, [db, user, date]);
+  }, [db, user, date, isUserLoading]);
 
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);
   const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
+
+  const isInitialLoading = isUserLoading || loadingApts;
 
   return (
     <div className="space-y-8">
@@ -73,7 +75,7 @@ export default function AdminAgenda() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loadingApts ? (
+            {isInitialLoading ? (
               <div className="flex justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>

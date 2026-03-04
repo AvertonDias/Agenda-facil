@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -31,7 +30,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -137,14 +135,13 @@ export default function AdminEquipe() {
           <p className="text-muted-foreground">Gerencie os profissionais do seu salão.</p>
         </div>
         
+        <Button className="gap-2" onClick={() => handleOpenDialog()}>
+          <Plus className="w-4 h-4" />
+          Novo Colaborador
+        </Button>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={() => handleOpenDialog()}>
-              <Plus className="w-4 h-4" />
-              Novo Colaborador
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px]" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>{editingCollaborator ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
             </DialogHeader>
@@ -212,7 +209,13 @@ export default function AdminEquipe() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleOpenDialog(employee)} className="gap-2">
+                      <DropdownMenuItem 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleOpenDialog(employee);
+                        }} 
+                        className="gap-2"
+                      >
                         <Edit2 className="w-4 h-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDelete(employee.id)} className="gap-2 text-destructive">

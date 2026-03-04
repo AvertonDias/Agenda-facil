@@ -20,7 +20,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -110,14 +109,13 @@ export default function AdminServices() {
           <p className="text-muted-foreground">Gerencie o catálogo de serviços do seu salão.</p>
         </div>
         
+        <Button className="gap-2" onClick={() => handleOpenDialog()}>
+          <Plus className="w-4 h-4" />
+          Novo Serviço
+        </Button>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={() => handleOpenDialog()}>
-              <Plus className="w-4 h-4" />
-              Novo Serviço
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+          <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>{editingService ? "Editar Serviço" : "Novo Serviço"}</DialogTitle>
             </DialogHeader>
@@ -174,7 +172,13 @@ export default function AdminServices() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleOpenDialog(service)} className="gap-2">
+                      <DropdownMenuItem 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleOpenDialog(service);
+                        }} 
+                        className="gap-2"
+                      >
                         <Edit2 className="w-4 h-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDelete(service.id)} className="gap-2 text-destructive">

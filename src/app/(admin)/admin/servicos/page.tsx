@@ -68,7 +68,6 @@ export default function AdminServices() {
       setPrice("0");
     }
     // Delay estratégico para garantir que o DropdownMenu feche antes do Dialog abrir
-    // Isso evita o travamento de pointer-events na UI
     setTimeout(() => setIsDialogOpen(true), 150);
   };
 
@@ -175,7 +174,10 @@ export default function AdminServices() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onSelect={() => handleOpenDialog(service)} 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleOpenDialog(service);
+                        }} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar

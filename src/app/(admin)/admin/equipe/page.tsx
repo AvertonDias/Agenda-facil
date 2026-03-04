@@ -211,7 +211,10 @@ export default function AdminEquipe() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onSelect={() => handleOpenDialog(employee)} 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleOpenDialog(employee);
+                        }} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar

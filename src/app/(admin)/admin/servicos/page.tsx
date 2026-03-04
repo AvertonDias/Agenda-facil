@@ -45,9 +45,9 @@ export default function AdminServices() {
   const [price, setPrice] = useState("0");
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid || isUserLoading) return null;
+    if (!db || !user?.uid) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user?.uid, isUserLoading]);
+  }, [db, user?.uid]);
 
   const { data: services, isLoading } = useCollection(servicesQuery);
 
@@ -67,7 +67,8 @@ export default function AdminServices() {
       setDuration("30");
       setPrice("0");
     }
-    setIsDialogOpen(true);
+    // Pequeno delay para evitar conflito de foco com o DropdownMenu
+    setTimeout(() => setIsDialogOpen(true), 100);
   };
 
   const handleSubmit = () => {
@@ -113,34 +114,34 @@ export default function AdminServices() {
           <Plus className="w-4 h-4" />
           Novo Serviço
         </Button>
+      </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingService ? "Editar Serviço" : "Novo Serviço"}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingService ? "Editar Serviço" : "Novo Serviço"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome do Serviço</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Corte de Cabelo" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Serviço</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Corte de Cabelo" />
+                <Label htmlFor="duration">Duração (min)</Label>
+                <Input id="duration" type="number" value={duration} onChange={(e) => setDuration(e.target.value)} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="duration">Duração (min)</Label>
-                  <Input id="duration" type="number" value={duration} onChange={(e) => setDuration(e.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="price">Preço (R$)</Label>
-                  <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="price">Preço (R$)</Label>
+                <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
               </div>
             </div>
-            <DialogFooter>
-              <Button onClick={handleSubmit} disabled={!name}>Salvar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSubmit} disabled={!name}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -173,12 +174,21 @@ export default function AdminServices() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onClick={() => handleOpenDialog(service)} 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleOpenDialog(service);
+                        }} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDelete(service.id)} className="gap-2 text-destructive">
+                      <DropdownMenuItem 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleDelete(service.id);
+                        }} 
+                        className="gap-2 text-destructive"
+                      >
                         <Trash2 className="w-4 h-4" /> Remover
                       </DropdownMenuItem>
                     </DropdownMenuContent>

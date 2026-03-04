@@ -8,14 +8,12 @@ service cloud.firestore {
     }
 
     // 2. Regra para o DOCUMENTO da Empresa
-    // Permite que a empresa acesse seus próprios dados básicos
     match /empresas/{empresaId} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
     }
 
-    // 3. Regra para QUALQUER coisa dentro de uma empresa (Subcoleções)
-    // O curinga {anything=**} aplicado após o ID da empresa garante 
-    // acesso total a agendamentos, servicos, etc.
+    // 3. Regra para QUALQUER subcoleção dentro de uma empresa
+    // O curinga {anything=**} garante que o dono tenha acesso total a agendamentos, servicos, etc.
     match /empresas/{empresaId}/{anything=**} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
     }

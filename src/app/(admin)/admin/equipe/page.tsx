@@ -58,14 +58,14 @@ export default function AdminEquipe() {
 
   // Queries
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid || isUserLoading) return null;
+    if (!db || !user?.uid) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user?.uid, isUserLoading]);
+  }, [db, user?.uid]);
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid || isUserLoading) return null;
+    if (!db || !user?.uid) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user?.uid, isUserLoading]);
+  }, [db, user?.uid]);
 
   const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
   const { data: services } = useCollection(servicesQuery);
@@ -84,7 +84,8 @@ export default function AdminEquipe() {
       setPhone("");
       setSelectedServices([]);
     }
-    setIsDialogOpen(true);
+    // Pequeno delay para evitar conflito de foco com o DropdownMenu
+    setTimeout(() => setIsDialogOpen(true), 100);
   };
 
   const handleSubmit = () => {
@@ -139,54 +140,54 @@ export default function AdminEquipe() {
           <Plus className="w-4 h-4" />
           Novo Colaborador
         </Button>
+      </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editingCollaborator ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome Completo</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Ricardo Silva" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="role">Cargo / Especialidade</Label>
-                <Input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ex: Barbeiro" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Telefone</Label>
-                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
-              </div>
-              <div className="grid gap-2">
-                <Label>Serviços Realizados</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
-                  {services?.map(service => (
-                    <div key={service.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={service.id} 
-                        checked={selectedServices.includes(service.id)}
-                        onCheckedChange={() => toggleService(service.id)}
-                      />
-                      <label htmlFor={service.id} className="text-sm cursor-pointer truncate">
-                        {service.name}
-                      </label>
-                    </div>
-                  ))}
-                  {(!services || services.length === 0) && (
-                    <p className="text-xs text-muted-foreground col-span-2">Nenhum serviço cadastrado.</p>
-                  )}
-                </div>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingCollaborator ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome Completo</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Ricardo Silva" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role">Cargo / Especialidade</Label>
+              <Input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ex: Barbeiro" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Telefone</Label>
+              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Serviços Realizados</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2 max-h-[150px] overflow-y-auto p-2 border rounded-md">
+                {services?.map(service => (
+                  <div key={service.id} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={service.id} 
+                      checked={selectedServices.includes(service.id)}
+                      onCheckedChange={() => toggleService(service.id)}
+                    />
+                    <label htmlFor={service.id} className="text-sm cursor-pointer truncate">
+                      {service.name}
+                    </label>
+                  </div>
+                ))}
+                {(!services || services.length === 0) && (
+                  <p className="text-xs text-muted-foreground col-span-2">Nenhum serviço cadastrado.</p>
+                )}
               </div>
             </div>
-            <DialogFooter>
-              <Button onClick={handleSubmit} disabled={!name}>
-                {editingCollaborator ? "Salvar Alterações" : "Adicionar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSubmit} disabled={!name}>
+              {editingCollaborator ? "Salvar Alterações" : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {(loadingColabs || isUserLoading) ? (
         <div className="flex justify-center py-20">
@@ -210,12 +211,21 @@ export default function AdminEquipe() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onClick={() => handleOpenDialog(employee)} 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleOpenDialog(employee);
+                        }} 
                         className="gap-2"
                       >
                         <Edit2 className="w-4 h-4" /> Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDelete(employee.id)} className="gap-2 text-destructive">
+                      <DropdownMenuItem 
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleDelete(employee.id);
+                        }} 
+                        className="gap-2 text-destructive"
+                      >
                         <Trash2 className="w-4 h-4" /> Remover
                       </DropdownMenuItem>
                     </DropdownMenuContent>

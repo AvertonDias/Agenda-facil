@@ -20,25 +20,25 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries protegidas por check de usuário
+  // Queries protegidas por check rigoroso de usuário
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || isUserLoading) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return query(
       collection(db, "empresas", user.uid, "agendamentos"),
       orderBy("time", "asc"),
       limit(5)
     );
-  }, [db, user, isUserLoading]);
+  }, [db, user?.uid, isUserLoading]);
 
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user || isUserLoading) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user, isUserLoading]);
+  }, [db, user?.uid, isUserLoading]);
 
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user || isUserLoading) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user, isUserLoading]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
   const { data: services, isLoading: loadingServices } = useCollection(servicesQuery);

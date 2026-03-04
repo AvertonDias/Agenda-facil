@@ -1,43 +1,23 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- FUNÇÕES DE APOIO ---
-    
-    // Verifica se o usuário está autenticado
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Verifica se o UID do usuário logado é o mesmo do ID do documento solicitado
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // --- REGRAS DE COLEÇÕES ---
-
-    // Perfis de usuários: Apenas o próprio usuário acessa seu documento de perfil
+    // 1. Regra para Perfis de Usuários
     match /perfis_usuarios/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Estrutura de Empresas
+    // 2. Regra para o DOCUMENTO da Empresa
+    // Permite que a empresa acesse seus próprios dados básicos
     match /empresas/{empresaId} {
-      
-      // Permite ler e editar o documento principal da empresa se for o dono
-      allow read, write: if isOwner(empresaId);
-
-      // Regra Recursiva: Aplica-se a QUALQUER subcoleção dentro do documento da empresa
-      // Isso cobre: /agendamentos, /servicos, /colaboradores e qualquer outra futura
-      match /{allSubcollections=**} {
-        allow read, write: if isOwner(empresaId);
-      }
+      allow read, write: if request.auth != null && request.auth.uid == empresaId;
     }
 
-    // Bloqueio de segurança: Impede leitura/escrita em qualquer outra coleção não mapeada acima
-    match /{document=**} {
-      allow read, write: if false;
+    // 3. Regra para QUALQUER coisa dentro de uma empresa (Subcoleções)
+    // O curinga {anything=**} aplicado após o ID da empresa garante 
+    // acesso total a agendamentos, servicos, etc.
+    match /empresas/{empresaId}/{anything=**} {
+      allow read, write: if request.auth != null && request.auth.uid == empresaId;
     }
   }
 }

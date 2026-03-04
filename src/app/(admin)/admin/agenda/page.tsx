@@ -15,26 +15,26 @@ export default function AdminAgenda() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries protegidas por check de usuário e loading
+  // Queries protegidas por check rigoroso de usuário e loading
   const servicesQuery = useMemoFirebase(() => {
-    if (!db || !user || isUserLoading) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
-  }, [db, user, isUserLoading]);
+  }, [db, user?.uid, isUserLoading]);
 
   const collaboratorsQuery = useMemoFirebase(() => {
-    if (!db || !user || isUserLoading) return null;
+    if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
-  }, [db, user, isUserLoading]);
+  }, [db, user?.uid, isUserLoading]);
 
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !date || isUserLoading) return null;
+    if (!db || !user?.uid || !date || isUserLoading) return null;
     const dateStr = format(date, 'yyyy-MM-dd');
     return query(
       collection(db, "empresas", user.uid, "agendamentos"),
       where("date", "==", dateStr),
       orderBy("time", "asc")
     );
-  }, [db, user, date, isUserLoading]);
+  }, [db, user?.uid, date, isUserLoading]);
 
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);

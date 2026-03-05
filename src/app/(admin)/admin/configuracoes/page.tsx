@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle, Settings } from "lucide-react";
+import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle, Settings, Plus, Trash2, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
-import { doc, serverTimestamp } from "firebase/firestore";
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
+import { doc, serverTimestamp, collection } from "firebase/firestore";
 import { cn, maskPhone } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const DAYS_OF_WEEK = [
   { id: "monday", label: "Segunda-feira" },
@@ -52,13 +55,20 @@ export default function AdminSettings() {
   });
 
   const [promotionsText, setPromotionsText] = useState("");
+  const [automaticPromotions, setAutomaticPromotions] = useState<any[]>([]);
 
   const companyRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "empresas", user.uid);
   }, [db, user]);
 
+  const servicesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, "empresas", user.uid, "servicos");
+  }, [db, user]);
+
   const { data: companyData, isLoading } = useDoc(companyRef);
+  const { data: services } = useCollection(servicesQuery);
 
   useEffect(() => {
     if (companyData) {
@@ -73,6 +83,7 @@ export default function AdminSettings() {
         setWorkingHours(companyData.workingHours);
       }
       setPromotionsText(companyData.promotionsText || "");
+      setAutomaticPromotions(companyData.automaticPromotions || []);
     }
   }, [companyData]);
 
@@ -91,6 +102,7 @@ export default function AdminSettings() {
       slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
       workingHours,
       promotionsText,
+      automaticPromotions,
       ownerId: user.uid,
       updatedAt: serverTimestamp(),
     };
@@ -111,6 +123,38 @@ export default function AdminSettings() {
       ...prev,
       [day]: { ...prev[day], [field]: value }
     }));
+  };
+
+  const addPromotion = () => {
+    setAutomaticPromotions(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substr(2, 9),
+        description: "Nova Promoção",
+        dayOfWeek: "any",
+        serviceIds: [],
+        discountPercentage: 10
+      }
+    ]);
+  };
+
+  const removePromotion = (id: string) => {
+    setAutomaticPromotions(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updatePromotion = (id: string, field: string, value: any) => {
+    setAutomaticPromotions(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const togglePromoService = (promoId: string, serviceId: string) => {
+    const promo = automaticPromotions.find(p => p.id === promoId);
+    if (!promo) return;
+    
+    const newServiceIds = promo.serviceIds.includes(serviceId)
+      ? promo.serviceIds.filter((id: string) => id !== serviceId)
+      : [...promo.serviceIds, serviceId];
+      
+    updatePromotion(promoId, "serviceIds", newServiceIds);
   };
 
   if (isLoading) {
@@ -268,23 +312,119 @@ export default function AdminSettings() {
         </TabsContent>
 
         <TabsContent value="promocoes">
-          <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
-            <CardHeader className="bg-secondary/10">
-              <CardTitle>Promoções e Avisos</CardTitle>
-              <CardDescription>Destaque mensagens importantes na sua página pública.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-8">
-              <div className="space-y-4">
-                <Label className="font-bold">Texto de Promoção (Banner)</Label>
-                <Textarea 
-                  value={promotionsText} 
-                  onChange={(e) => setPromotionsText(e.target.value)} 
-                  placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
-                  className="min-h-[150px] text-lg font-bold p-8 border-2 rounded-3xl"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+              <CardHeader className="bg-secondary/10">
+                <CardTitle>Promoções e Avisos</CardTitle>
+                <CardDescription>Destaque mensagens importantes na sua página pública.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="space-y-4">
+                  <Label className="font-bold">Texto de Promoção (Banner)</Label>
+                  <Textarea 
+                    value={promotionsText} 
+                    onChange={(e) => setPromotionsText(e.target.value)} 
+                    placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
+                    className="min-h-[150px] text-lg font-bold p-8 border-2 rounded-3xl"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+              <CardHeader className="bg-primary/5 border-b">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-primary flex items-center gap-2">
+                      <Zap className="w-5 h-5" />
+                      Promoções Automáticas
+                    </CardTitle>
+                    <CardDescription>Descontos aplicados automaticamente no carrinho do cliente.</CardDescription>
+                  </div>
+                  <Button onClick={addPromotion} variant="outline" className="border-2 rounded-xl font-bold gap-2">
+                    <Plus className="w-4 h-4" /> Add Regra
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                {automaticPromotions.length === 0 && (
+                  <div className="text-center py-12 border-2 border-dashed rounded-3xl bg-secondary/5">
+                    <Tag className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-muted-foreground font-bold">Nenhuma promoção automática configurada.</p>
+                  </div>
+                )}
+                
+                {automaticPromotions.map((promo) => (
+                  <div key={promo.id} className="p-6 border-2 rounded-3xl bg-white space-y-4 relative group hover:border-primary/50 transition-all">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute top-4 right-4 text-destructive opacity-0 group-hover:opacity-100" 
+                      onClick={() => removePromotion(promo.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Descrição / Nome da Promoção</Label>
+                        <Input 
+                          value={promo.description} 
+                          onChange={(e) => updatePromotion(promo.id, "description", e.target.value)}
+                          placeholder="Ex: Combo Quarta Maluca"
+                          className="h-12 border-2 rounded-xl font-bold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Dia da Semana</Label>
+                        <Select value={promo.dayOfWeek} onValueChange={(v) => updatePromotion(promo.id, "dayOfWeek", v)}>
+                          <SelectTrigger className="h-12 border-2 rounded-xl font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Qualquer dia</SelectItem>
+                            {DAYS_OF_WEEK.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Serviços do Combo (Obrigatórios)</Label>
+                        <div className="flex flex-wrap gap-2 p-3 border-2 rounded-xl bg-secondary/5 max-h-[100px] overflow-y-auto">
+                          {services?.map(s => (
+                            <div 
+                              key={s.id} 
+                              className={cn(
+                                "px-3 py-1 rounded-full border-2 text-[10px] font-bold cursor-pointer transition-all",
+                                promo.serviceIds.includes(s.id) ? "bg-primary border-primary text-white" : "bg-white border-border"
+                              )}
+                              onClick={() => togglePromoService(promo.id, s.id)}
+                            >
+                              {s.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Desconto (%)</Label>
+                        <div className="flex items-center gap-4">
+                          <Input 
+                            type="number" 
+                            value={promo.discountPercentage} 
+                            onChange={(e) => updatePromotion(promo.id, "discountPercentage", parseInt(e.target.value))}
+                            className="h-12 border-2 rounded-xl font-bold w-24"
+                          />
+                          <span className="text-xl font-black text-primary">% OFF</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

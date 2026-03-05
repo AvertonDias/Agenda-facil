@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -27,6 +28,19 @@
         "plan": { "type": "string" },
         "workingHours": { "type": "object", "description": "Mapa de horários por dia da semana" },
         "promotionsText": { "type": "string", "description": "Texto de destaque para promoções" },
+        "automaticPromotions": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "dayOfWeek": { "type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "any"] },
+              "serviceIds": { "type": "array", "items": { "type": "string" } },
+              "discountPercentage": { "type": "number" }
+            }
+          }
+        },
         "minLeadTimeHours": { "type": "number" },
         "slotIntervalMinutes": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }

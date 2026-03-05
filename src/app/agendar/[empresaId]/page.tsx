@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -19,7 +20,8 @@ import {
   Calendar as CalendarIcon,
   Tag,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Zap
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { format, addMinutes, isBefore, addHours, parseISO, isSameDay, getDay } from "date-fns";
@@ -66,8 +68,37 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const selectedServices = services?.filter(s => selectedServiceIds.includes(s.id)) || [];
   const currentEmployee = collaborators?.find(e => e.id === selectedEmployeeId);
 
+  const rawTotalPrice = selectedServices.reduce((acc, s) => acc + (s.basePrice || 0), 0);
   const totalDuration = selectedServices.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
-  const totalPrice = selectedServices.reduce((acc, s) => acc + (s.basePrice || 0), 0);
+
+  // Lógica de Promoções Automáticas
+  const appliedPromotion = useMemo(() => {
+    if (!companyData?.automaticPromotions || !selectedDate || selectedServiceIds.length === 0) return null;
+    
+    const dayName = DAY_MAP[getDay(selectedDate)];
+    
+    // Encontrar a melhor promoção aplicável
+    for (const promo of companyData.automaticPromotions) {
+      // Verificar dia da semana
+      const dayMatches = promo.dayOfWeek === "any" || promo.dayOfWeek === dayName;
+      if (!dayMatches) continue;
+
+      // Verificar se o combo de serviços está completo no carrinho
+      const allServicesSelected = promo.serviceIds.every((sId: string) => selectedServiceIds.includes(sId));
+      if (!allServicesSelected || promo.serviceIds.length === 0) continue;
+
+      return promo;
+    }
+    return null;
+  }, [companyData, selectedDate, selectedServiceIds]);
+
+  const totalPrice = useMemo(() => {
+    if (appliedPromotion) {
+      const discount = rawTotalPrice * (appliedPromotion.discountPercentage / 100);
+      return rawTotalPrice - discount;
+    }
+    return rawTotalPrice;
+  }, [rawTotalPrice, appliedPromotion]);
 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
@@ -137,6 +168,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       endTime: endTime.toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       status: "pendente",
+      finalPrice: totalPrice,
+      appliedPromotionId: appliedPromotion?.id || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -155,7 +188,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const handleNotifyWhatsapp = () => {
     if (!companyData || !selectedTime) return;
     const servicesText = selectedServices.map(s => s.name).join(" + ");
-    const message = `Olá! Acabei de agendar pelo site:\n\n👤 *Cliente:* ${clientName}\n✂️ *Serviço:* ${servicesText}\n📅 *Data:* ${format(selectedDate, "dd/MM")}\n⏰ *Hora:* ${selectedTime}\n\nAté logo!`;
+    const message = `Olá! Acabei de agendar pelo site:\n\n👤 *Cliente:* ${clientName}\n✂️ *Serviço:* ${servicesText}\n📅 *Data:* ${format(selectedDate, "dd/MM")}\n⏰ *Hora:* ${selectedTime}\n💰 *Valor:* R$ ${totalPrice.toFixed(2)}\n\nAté logo!`;
     const encoded = encodeURIComponent(message);
     const phone = companyData.phoneNumber.replace(/\D/g, "");
     window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${encoded}`, "_blank");
@@ -201,6 +234,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                 <CalendarIcon className="w-4 h-4" />
                 {format(selectedDate, "PPP", { locale: ptBR })} às {selectedTime}
               </p>
+              <div className="pt-2 border-t flex justify-between">
+                <span className="text-xs font-bold uppercase text-muted-foreground">Total</span>
+                <span className="font-black text-xl text-primary">R$ {totalPrice.toFixed(2)}</span>
+              </div>
             </div>
             <div className="grid gap-3">
               {companyData.notifyInstant && (
@@ -433,9 +470,26 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t p-6 pb-8 z-50">
         <div className="max-w-xl mx-auto flex justify-between items-center">
-          <div>
+          <div className="flex flex-col">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Investimento</p>
-            <p className="font-black text-2xl text-primary">R$ {totalPrice.toFixed(2)}</p>
+            <div className="flex items-center gap-2">
+              <p className={cn(
+                "font-black text-2xl transition-all",
+                appliedPromotion ? "text-primary scale-110" : "text-foreground"
+              )}>
+                R$ {totalPrice.toFixed(2)}
+              </p>
+              {appliedPromotion && (
+                <span className="text-xs line-through text-muted-foreground decoration-destructive decoration-2">
+                  R$ {rawTotalPrice.toFixed(2)}
+                </span>
+              )}
+            </div>
+            {appliedPromotion && (
+              <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase animate-pulse">
+                <Zap className="w-3 h-3" /> {appliedPromotion.description} aplicada!
+              </div>
+            )}
           </div>
           {step === 1 && (
             <Button 

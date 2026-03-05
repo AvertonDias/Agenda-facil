@@ -177,6 +177,13 @@ export default function AdminAgenda() {
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
+  const handleUpdateStatus = (appointmentId: string, newStatus: string) => {
+    if (!user) return;
+    const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
+    updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
+    toast({ title: "Status atualizado!" });
+  };
+
   const handleSaveAppointment = () => {
     if (!user || !clientName || selectedServiceIds.length === 0 || !selectedEmployee || !selectedTime) {
       toast({ title: "Campos obrigatórios", description: "Preencha todos os campos e selecione ao menos um serviço.", variant: "destructive" });
@@ -304,7 +311,7 @@ export default function AdminAgenda() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="clientName" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Nome do Cliente</Label>
-                <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Ex: João" className="h-12 border-2 rounded-xl" />
+                <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Ex: João Silva" className="h-12 border-2 rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clientPhone" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Telefone</Label>
@@ -456,9 +463,23 @@ export default function AdminAgenda() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="text-lg font-black">{apt.clientName}</h4>
-                            <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5", currentStatus.color)}>
-                              {currentStatus.label}
-                            </Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5 cursor-pointer hover:opacity-80 transition-opacity", currentStatus.color)}>
+                                  {currentStatus.label}
+                                </Badge>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="font-bold">
+                                {Object.entries(statusConfig).map(([statusKey, config]) => (
+                                  <DropdownMenuItem key={statusKey} onClick={() => handleUpdateStatus(apt.id, statusKey)}>
+                                    <Badge className={cn("text-[8px] mr-2 h-4 font-black uppercase border-2 leading-none px-1.5", config.color)}>
+                                      {config.label}
+                                    </Badge>
+                                    Mudar para {config.label}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1.5 font-bold">
                             <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone || "Sem tel"}

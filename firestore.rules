@@ -11,14 +11,14 @@ service cloud.firestore {
     // Regra para Empresas e suas Subcoleções (Modelo Ultra-Explícito)
     match /empresas/{empresaId} {
       // Permite ler/escrever o documento da própria empresa
-      // Separamos 'get' e 'list' explicitamente para evitar ambiguidades
       allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
 
-      // Permite acesso específico a subcoleções críticas
+      // Permite acesso específico a subcoleções críticas de agendamentos
       match /agendamentos/{docId} {
         allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }
       
+      // Permite acesso aos catálogos
       match /servicos/{docId} {
         allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }
@@ -27,7 +27,7 @@ service cloud.firestore {
         allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }
 
-      // Permite acesso recursivo total para qualquer outra subcoleção futura
+      // Permite acesso recursivo total para qualquer outra subcoleção futura dentro da empresa
       match /{anything=**} {
         allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -14,7 +15,6 @@ import {
   MoreVertical,
   Phone,
   Check,
-  Info,
   Trash2,
   Edit2,
   Calendar as CalendarIcon
@@ -22,7 +22,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
-import { format, startOfDay, parseISO, addMinutes, isSameDay, isBefore, addHours } from "date-fns";
+import { format, isSameDay, addMinutes, isBefore, addHours, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -70,7 +70,7 @@ export default function AdminAgenda() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Queries e Dados
+  // Queries (Sem filtros 'where' para evitar erros de índice ausente)
   const companyRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return doc(db, "empresas", user.uid);
@@ -96,17 +96,25 @@ export default function AdminAgenda() {
   const { data: collaborators } = useCollection(collaboratorsQuery);
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
 
-  // Configurações da Empresa
+  // Configurações
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
 
-  // Geração dinâmica de horários baseado nas configurações
+  // Filtragem manual na memória por data
+  const appointments = useMemo(() => {
+    if (!allAppointments || !date) return [];
+    return allAppointments
+      .filter(apt => apt.startTime && isSameDay(parseISO(apt.startTime), date))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [allAppointments, date]);
+
+  // Geração de horários baseada nas configurações
   const timeSlots = useMemo(() => {
     const slots = [];
     let current = new Date();
     current.setHours(8, 0, 0, 0);
     const end = new Date();
-    end.setHours(21, 0, 0, 0);
+    end.setHours(20, 0, 0, 0);
 
     while (current <= end) {
       slots.push(format(current, "HH:mm"));
@@ -115,14 +123,19 @@ export default function AdminAgenda() {
     return slots;
   }, [slotInterval]);
 
-  // Filtragem manual na memória
-  const appointments = allAppointments?.filter(apt => {
-    if (!apt.startTime || !date) return false;
-    const aptDate = new Date(apt.startTime);
-    return isSameDay(aptDate, date);
-  });
+  const isSlotBusy = (time: string) => {
+    if (!allAppointments || !selectedEmployee) return false;
+    const [h, m] = time.split(':').map(Number);
+    const slotStart = new Date(selectedDate);
+    slotStart.setHours(h, m, 0, 0);
 
-  const isInitialLoading = isUserLoading || loadingApts;
+    return allAppointments.some(apt => {
+      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployee) return false;
+      const aptStart = parseISO(apt.startTime);
+      const aptEnd = parseISO(apt.endTime);
+      return slotStart >= aptStart && slotStart < aptEnd;
+    });
+  };
 
   const handleOpenEditDialog = (apt: any) => {
     setEditingAppointmentId(apt.id);
@@ -130,47 +143,32 @@ export default function AdminAgenda() {
     setClientPhone(apt.clientPhone || "");
     setSelectedService(apt.serviceId);
     setSelectedEmployee(apt.employeeId);
-    
     if (apt.startTime) {
-      const start = new Date(apt.startTime);
+      const start = parseISO(apt.startTime);
       setSelectedDate(start);
       setSelectedTime(format(start, "HH:mm"));
     }
-    
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
   const handleSaveAppointment = () => {
-    if (!user || !selectedDate || !clientName || !selectedService || !selectedEmployee || !selectedTime) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos do agendamento.",
-        variant: "destructive",
-      });
+    if (!user || !clientName || !selectedService || !selectedEmployee || !selectedTime) {
+      toast({ title: "Campos obrigatórios", description: "Preencha todos os campos.", variant: "destructive" });
       return;
     }
 
-    // MODELO DE TEMPO ROBUSTO
     const [hours, minutes] = selectedTime.split(':').map(Number);
     const startTime = new Date(selectedDate);
     startTime.setHours(hours, minutes, 0, 0);
 
-    // Verificação de Antecedência Mínima
-    if (minLeadTime > 0) {
-      const minAllowed = addHours(new Date(), minLeadTime);
-      if (isBefore(startTime, minAllowed)) {
-        toast({
-          title: "Antecedência mínima necessária",
-          description: `Sua configuração exige pelo menos ${minLeadTime}h de antecedência.`,
-          variant: "destructive",
-        });
-        return;
-      }
+    if (minLeadTime > 0 && isBefore(startTime, addHours(new Date(), minLeadTime))) {
+      toast({ title: "Erro de antecedência", description: `Mínimo de ${minLeadTime}h necessário.`, variant: "destructive" });
+      return;
     }
 
     setIsSubmitting(true);
-    const serviceData = services?.find(s => s.id === selectedService);
-    const duration = serviceData?.durationMinutes || slotInterval;
+    const service = services?.find(s => s.id === selectedService);
+    const duration = service?.durationMinutes || slotInterval;
     const endTime = addMinutes(startTime, duration);
     
     const appointmentData = {
@@ -196,9 +194,7 @@ export default function AdminAgenda() {
       const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
       addDocumentNonBlocking(appointmentsRef, { ...appointmentData, createdAt: new Date().toISOString() })
         .then(() => {
-          toast({
-            title: "Agendamento realizado!",
-          });
+          toast({ title: "Agendamento realizado!" });
           setIsDialogOpen(false);
           resetForm();
         })
@@ -210,10 +206,7 @@ export default function AdminAgenda() {
     if (!user) return;
     const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
     deleteDocumentNonBlocking(docRef);
-    toast({
-      title: "Agendamento removido",
-      variant: "destructive",
-    });
+    toast({ title: "Agendamento removido", variant: "destructive" });
   };
 
   const resetForm = () => {
@@ -226,46 +219,20 @@ export default function AdminAgenda() {
     setEditingAppointmentId(null);
   };
 
-  const calculateEndTimeStr = (startTimeStr: string, duration: number) => {
-    const [hours, minutes] = startTimeStr.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes + duration;
-    const h = Math.floor(totalMinutes / 60) % 24;
-    const m = totalMinutes % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-  };
-
-  const selectedServiceData = services?.find(s => s.id === selectedService);
-  const serviceDuration = selectedServiceData?.durationMinutes || slotInterval;
-
-  const isSlotBusy = (time: string) => {
-    if (!allAppointments || !selectedEmployee) return false;
-    
-    const [h, m] = time.split(':').map(Number);
-    const slotStart = new Date(selectedDate);
-    slotStart.setHours(h, m, 0, 0);
-
-    return allAppointments.some(apt => {
-      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployee) return false;
-      
-      const aptStart = new Date(apt.startTime);
-      const aptEnd = new Date(apt.endTime);
-      
-      return slotStart >= aptStart && slotStart < aptEnd;
-    });
-  };
+  const isInitialLoading = isUserLoading || (loadingApts && !allAppointments);
 
   return (
-    <div className="flex flex-col space-y-8 max-w-4xl mx-auto w-full">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="flex flex-col space-y-8 max-w-2xl mx-auto w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
         <div>
-          <h1 className="text-3xl font-black flex items-center gap-2 text-primary tracking-tight">
+          <h1 className="text-3xl font-black flex items-center justify-center sm:justify-start gap-2 text-primary tracking-tight">
             <CalendarDays className="w-8 h-8" />
             Agenda
           </h1>
-          <p className="text-muted-foreground font-medium">Gestão inteligente de horários.</p>
+          <p className="text-muted-foreground font-medium">Gerencie seus horários e compromissos.</p>
         </div>
         <Button 
-          className="gap-2 shadow-lg hover:shadow-xl transition-all font-bold px-6 h-12"
+          className="gap-2 shadow-lg hover:shadow-xl transition-all font-bold px-8 h-12 w-full sm:w-auto"
           onClick={() => { resetForm(); setIsDialogOpen(true); }}
         >
           <Plus className="w-4 h-4" />
@@ -286,13 +253,7 @@ export default function AdminAgenda() {
               <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Escolher Data</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-bold h-12 border-2",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
+                  <Button variant="outline" className="w-full justify-start text-left font-bold h-12 border-2">
                     <CalendarDays className="mr-2 h-4 w-4 text-primary" />
                     {selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
                   </Button>
@@ -311,24 +272,12 @@ export default function AdminAgenda() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="clientName" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Cliente</Label>
-                <Input 
-                  id="clientName" 
-                  value={clientName} 
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Nome" 
-                  className="h-12 border-2"
-                />
+                <Label htmlFor="clientName" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Nome do Cliente</Label>
+                <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Ex: João" className="h-12 border-2" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clientPhone" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Telefone</Label>
-                <Input 
-                  id="clientPhone" 
-                  value={clientPhone} 
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="(00) 00000-0000" 
-                  className="h-12 border-2"
-                />
+                <Input id="clientPhone" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="(00) 00000-0000" className="h-12 border-2" />
               </div>
             </div>
 
@@ -340,9 +289,7 @@ export default function AdminAgenda() {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {services?.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name} ({s.durationMinutes}min)</SelectItem>
-                    ))}
+                    {services?.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.durationMinutes}min)</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -353,34 +300,36 @@ export default function AdminAgenda() {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {collaborators?.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {collaborators?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Horários (Intervalo: {slotInterval}min)</Label>
+              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Horários Disponíveis</Label>
               {!selectedService || !selectedEmployee ? (
                 <div className="p-4 border-2 border-dashed rounded-xl bg-secondary/5 text-center">
                   <p className="text-xs text-muted-foreground font-bold">Selecione serviço e profissional para ver as vagas.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 h-[150px] overflow-y-auto p-2 border-2 rounded-xl bg-background shadow-inner">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 h-[200px] overflow-y-auto p-2 border-2 rounded-xl bg-background">
                   {timeSlots.map(time => {
                     const isBusy = isSlotBusy(time);
-                    const endTimeStr = calculateEndTimeStr(time, serviceDuration);
+                    const service = services?.find(s => s.id === selectedService);
+                    const duration = service?.durationMinutes || slotInterval;
                     
+                    const [h, m] = time.split(':').map(Number);
+                    const endT = addMinutes(new Date(2000, 0, 1, h, m), duration);
+                    const endTimeStr = format(endT, "HH:mm");
+
                     return (
                       <Button
                         key={time}
                         variant={selectedTime === time ? "default" : "outline"}
-                        size="sm"
                         disabled={isBusy}
                         className={cn(
-                          "text-xs h-10 flex flex-col items-center justify-center font-black border-2",
+                          "h-12 flex flex-col items-center justify-center font-black border-2",
                           isBusy && "opacity-20 grayscale cursor-not-allowed bg-muted",
                           selectedTime === time && "ring-2 ring-primary ring-offset-1"
                         )}
@@ -410,89 +359,86 @@ export default function AdminAgenda() {
           <CardHeader className="pb-4 border-b bg-secondary/10 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
               <CalendarIcon className="w-4 h-4" />
-              Calendário
+              {date ? format(date, "MMMM yyyy", { locale: ptBR }) : "Calendário"}
             </CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setDate(new Date())} className="h-8 text-[10px] font-black uppercase">Hoje</Button>
           </CardHeader>
-          <CardContent className="p-0 flex justify-center">
-            <Calendar mode="single" selected={date} onSelect={setDate} locale={ptBR} className="w-full p-4" />
+          <CardContent className="p-2 flex justify-center">
+            <Calendar mode="single" selected={date} onSelect={setDate} locale={ptBR} className="w-full" />
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl flex flex-col bg-white rounded-2xl overflow-hidden">
+        <Card className="border-none shadow-xl flex flex-col bg-white rounded-2xl overflow-hidden min-h-[400px]">
           <CardHeader className="border-b bg-card/50 p-6">
             <CardTitle className="text-2xl font-black tracking-tight">Compromissos</CardTitle>
             <p className="text-xs text-muted-foreground font-bold uppercase">Agenda para {date ? format(date, "PPP", { locale: ptBR }) : ''}</p>
           </CardHeader>
           
-          <CardContent className="flex-1 p-0 overflow-auto min-h-[400px]">
+          <CardContent className="flex-1 p-0">
             {isInitialLoading ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground font-black uppercase">Sincronizando...</p>
               </div>
-            ) : (
+            ) : appointments.length > 0 ? (
               <div className="divide-y-2 divide-border/50">
-                {appointments && appointments.length > 0 ? (
-                  [...appointments]
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                    .map((apt) => {
-                      const service = services?.find(s => s.id === apt.serviceId);
-                      const employee = collaborators?.find(e => e.id === apt.employeeId);
-                      const aptTime = format(new Date(apt.startTime), "HH:mm");
+                {appointments.map((apt) => {
+                  const service = services?.find(s => s.id === apt.serviceId);
+                  const employee = collaborators?.find(e => e.id === apt.employeeId);
+                  const aptTime = format(parseISO(apt.startTime), "HH:mm");
 
-                      return (
-                        <div key={apt.id} className="group flex gap-4 p-6 hover:bg-secondary/5 transition-all border-l-4 border-l-transparent hover:border-l-primary">
-                          <div className="flex flex-col items-center min-w-[60px]">
-                            <span className="text-xl font-black">{aptTime}</span>
-                            <div className="w-1.5 h-full mt-2 rounded-full bg-green-500" />
+                  return (
+                    <div key={apt.id} className="group relative flex gap-4 p-6 hover:bg-secondary/5 transition-all">
+                      <div className="flex flex-col items-center min-w-[60px]">
+                        <span className="text-xl font-black">{aptTime}</span>
+                        <div className="w-1.5 h-full mt-2 rounded-full bg-primary/20" />
+                      </div>
+
+                      <div className="flex-1 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-lg font-black">{apt.clientName}</h4>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone || "Sem tel"}
+                            </p>
                           </div>
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 transition-opacity border-2 rounded-full">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="font-bold">
+                              <DropdownMenuItem onClick={() => handleOpenEditDialog(apt)} className="gap-2">
+                                <Edit2 className="w-4 h-4 text-primary" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeleteAppointment(apt.id)} className="gap-2 text-destructive">
+                                <Trash2 className="w-4 h-4" /> Remover
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
 
-                          <div className="flex-1 space-y-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="text-lg font-black">{apt.clientName}</h4>
-                                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                                  <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone || "Sem tel"}
-                                </p>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-10 w-10 border-2">
-                                    <MoreVertical className="w-5 h-5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="font-bold">
-                                  <DropdownMenuItem onClick={() => handleOpenEditDialog(apt)} className="gap-2">
-                                    <Edit2 className="w-4 h-4 text-primary" /> Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeleteAppointment(apt.id)} className="gap-2 text-destructive">
-                                    <Trash2 className="w-4 h-4" /> Remover
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="flex items-center gap-3 text-sm bg-white p-3 rounded-xl border-2">
-                                <Scissors className="w-5 h-5 text-primary" />
-                                <span className="font-black text-xs uppercase">{service?.name || 'Serviço'}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm bg-white p-3 rounded-xl border-2">
-                                <User className="w-5 h-5 text-accent" />
-                                <span className="font-black text-xs uppercase">{employee?.name || 'Profissional'}</span>
-                              </div>
-                            </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="flex items-center gap-3 text-sm bg-white p-3 rounded-xl border-2">
+                            <Scissors className="w-5 h-5 text-primary" />
+                            <span className="font-black text-[10px] uppercase truncate">{service?.name || 'Serviço'}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm bg-white p-3 rounded-xl border-2">
+                            <User className="w-5 h-5 text-accent" />
+                            <span className="font-black text-[10px] uppercase truncate">{employee?.name || 'Profissional'}</span>
                           </div>
                         </div>
-                      );
-                    })
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-40">
-                    <Clock className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-muted-foreground font-bold uppercase tracking-widest">Nenhum agendamento.</p>
-                  </div>
-                )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-32 text-center px-4">
+                <CalendarIcon className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Nenhum agendamento para este dia.</p>
               </div>
             )}
           </CardContent>

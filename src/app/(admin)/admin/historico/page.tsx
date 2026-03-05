@@ -22,16 +22,25 @@ import {
   Scissors,
   CheckCircle2,
   Phone,
-  Clock
+  Clock,
+  Filter
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn, maskPhone } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminHistory() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCollabId, setSelectedCollabId] = useState("all");
 
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -56,12 +65,14 @@ export default function AdminHistory() {
     if (!allAppointments) return [];
     return allAppointments
       .filter(apt => apt.status === 'concluido')
-      .filter(apt => 
-        apt.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        apt.clientPhone?.includes(searchTerm)
-      )
+      .filter(apt => {
+        const matchesSearch = apt.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             apt.clientPhone?.includes(searchTerm);
+        const matchesCollab = selectedCollabId === "all" || apt.employeeId === selectedCollabId;
+        return matchesSearch && matchesCollab;
+      })
       .sort((a, b) => b.startTime.localeCompare(a.startTime));
-  }, [allAppointments, searchTerm]);
+  }, [allAppointments, searchTerm, selectedCollabId]);
 
   const clientRanking = useMemo(() => {
     if (!allAppointments) return [];
@@ -114,7 +125,6 @@ export default function AdminHistory() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Ranking de Clientes */}
         <div className="lg:col-span-1 space-y-6">
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
             <CardHeader className="bg-primary/5 border-b">
@@ -156,16 +166,33 @@ export default function AdminHistory() {
           </Card>
         </div>
 
-        {/* Lista de Histórico em Cards */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar cliente ou telefone no histórico..." 
-              className="pl-12 h-12 border-2 rounded-2xl font-bold bg-white"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar cliente ou telefone..." 
+                className="pl-12 h-12 border-2 rounded-2xl font-bold bg-white"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-[200px]">
+              <Select value={selectedCollabId} onValueChange={setSelectedCollabId}>
+                <SelectTrigger className="h-12 border-2 rounded-2xl font-bold bg-white">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-primary" />
+                    <SelectValue placeholder="Profissional" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Profissionais</SelectItem>
+                  {collaborators?.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -233,7 +260,7 @@ export default function AdminHistory() {
                 <Card className="col-span-full border-none shadow-xl rounded-3xl py-20 bg-white">
                   <div className="flex flex-col items-center justify-center text-center px-4">
                     <History className="w-12 h-12 text-muted-foreground/20 mb-4" />
-                    <p className="text-muted-foreground font-bold uppercase text-xs">Nenhum histórico encontrado.</p>
+                    <p className="text-muted-foreground font-bold uppercase text-xs">Nenhum histórico encontrado com os filtros atuais.</p>
                   </div>
                 </Card>
               )}

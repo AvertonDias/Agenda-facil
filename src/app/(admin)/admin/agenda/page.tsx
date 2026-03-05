@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -26,7 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import { format, isSameDay, addMinutes, isBefore, addHours, parseISO } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, maskPhone } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -85,7 +84,6 @@ export default function AdminAgenda() {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Estados do Modal
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
@@ -97,11 +95,9 @@ export default function AdminAgenda() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Estado para confirmação de mensagem
   const [showConfirmMessageAlert, setShowConfirmMessageAlert] = useState(false);
   const [lastConfirmedAptId, setLastConfirmedAptId] = useState<string | null>(null);
 
-  // Queries
   const companyRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return doc(db, "empresas", user.uid);
@@ -127,11 +123,9 @@ export default function AdminAgenda() {
   const { data: collaborators } = useCollection(collaboratorsQuery);
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
 
-  // Configurações
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
 
-  // Filtragem manual na memória por data
   const appointments = useMemo(() => {
     if (!allAppointments || !date) return [];
     return allAppointments
@@ -139,7 +133,6 @@ export default function AdminAgenda() {
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [allAppointments, date]);
 
-  // Geração de horários
   const timeSlots = useMemo(() => {
     const slots = [];
     let current = new Date();
@@ -154,7 +147,6 @@ export default function AdminAgenda() {
     return slots;
   }, [slotInterval]);
 
-  // Duração total dos serviços selecionados
   const totalDuration = useMemo(() => {
     return selectedServiceIds.reduce((acc, id) => {
       const service = services?.find(s => s.id === id);
@@ -349,7 +341,13 @@ export default function AdminAgenda() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clientPhone" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Telefone</Label>
-                <Input id="clientPhone" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="(00) 00000-0000" className="h-12 border-2 rounded-xl" />
+                <Input 
+                  id="clientPhone" 
+                  value={clientPhone} 
+                  onChange={(e) => setClientPhone(maskPhone(e.target.value))} 
+                  placeholder="(00) 00000-0000" 
+                  className="h-12 border-2 rounded-xl" 
+                />
               </div>
             </div>
 

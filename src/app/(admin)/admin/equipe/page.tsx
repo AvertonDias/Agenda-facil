@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { maskPhone } from "@/lib/utils";
 
 export default function AdminEquipe() {
   const { user, isUserLoading } = useUser();
@@ -50,13 +51,11 @@ export default function AdminEquipe() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCollaborator, setEditingCollaborator] = useState<any>(null);
 
-  // Form state
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-  // Queries protegidas
   const collaboratorsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "colaboradores");
@@ -84,7 +83,6 @@ export default function AdminEquipe() {
       setPhone("");
       setSelectedServices([]);
     }
-    // Atraso de 200ms para garantir que o menu feche completamente antes de abrir o Dialog, evitando UI freeze
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
@@ -158,7 +156,12 @@ export default function AdminEquipe() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="phone">Telefone</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
+              <Input 
+                id="phone" 
+                value={phone} 
+                onChange={(e) => setPhone(maskPhone(e.target.value))} 
+                placeholder="(11) 99999-9999" 
+              />
             </div>
             <div className="grid gap-2">
               <Label>Serviços Realizados</Label>
@@ -212,7 +215,7 @@ export default function AdminEquipe() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
                         onSelect={(e) => {
-                          e.preventDefault(); // Previne fechamento abrupto que trava o foco
+                          e.preventDefault();
                           handleOpenDialog(employee);
                         }} 
                         className="gap-2"

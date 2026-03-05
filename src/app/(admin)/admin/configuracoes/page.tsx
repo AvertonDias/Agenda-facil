@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,7 +13,7 @@ import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, A
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
-import { cn } from "@/lib/utils";
+import { cn, maskPhone } from "@/lib/utils";
 
 const DAYS_OF_WEEK = [
   { id: "monday", label: "Segunda-feira" },
@@ -32,20 +31,16 @@ export default function AdminSettings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // States para Perfil
   const [salonName, setSalonName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
 
-  // States para Notificações
   const [notifyInstant, setNotifyInstant] = useState(true);
   const [notifyReminder24h, setNotifyReminder24h] = useState(true);
 
-  // States para Regras de Negócio
   const [minLeadTimeHours, setMinLeadTimeHours] = useState("2");
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState("30");
 
-  // State para Horário de Funcionamento
   const [workingHours, setWorkingHours] = useState<Record<string, { open: string, close: string, closed: boolean }>>({
     monday: { open: "08:00", close: "18:00", closed: false },
     tuesday: { open: "08:00", close: "18:00", closed: false },
@@ -56,7 +51,6 @@ export default function AdminSettings() {
     sunday: { open: "08:00", close: "12:00", closed: true },
   });
 
-  // State para Promoções
   const [promotionsText, setPromotionsText] = useState("");
 
   const companyRef = useMemoFirebase(() => {
@@ -176,7 +170,12 @@ export default function AdminSettings() {
                 </div>
                 <div className="space-y-2">
                   <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">WhatsApp para Contato</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" className="h-14 border-2 rounded-2xl px-6 font-bold" />
+                  <Input 
+                    value={phone} 
+                    onChange={(e) => setPhone(maskPhone(e.target.value))} 
+                    placeholder="(11) 99999-9999" 
+                    className="h-14 border-2 rounded-2xl px-6 font-bold" 
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Endereço Completo</Label>
@@ -224,30 +223,18 @@ export default function AdminSettings() {
         <TabsContent value="regras">
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
             <CardHeader className="bg-secondary/10">
-              <CardTitle>Regras de Agenda</CardTitle>
-              <CardDescription>Controle como os clientes podem marcar horários.</CardDescription>
+              <CardTitle>Agenda Inteligente</CardTitle>
+              <CardDescription>Configure as regras para o seu estabelecimento.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8 p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" />
-                    <Label className="font-bold">Antecedência Mínima (horas)</Label>
-                  </div>
-                  <Input type="number" value={minLeadTimeHours} onChange={(e) => setMinLeadTimeHours(e.target.value)} className="h-14 border-2 rounded-2xl px-6 font-black" />
-                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">
-                    Ex: Se colocar 2h, o cliente não consegue marcar um horário para daqui a 1 hora.
-                  </p>
+            <CardContent className="space-y-6 p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Antecedência Mínima (Horas)</Label>
+                  <Input type="number" value={minLeadTimeHours} onChange={(e) => setMinLeadTimeHours(e.target.value)} className="h-14 border-2 rounded-2xl px-6 font-bold" />
                 </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="w-5 h-5 text-primary" />
-                    <Label className="font-bold">Intervalo entre Vagas (minutos)</Label>
-                  </div>
-                  <Input type="number" value={slotIntervalMinutes} onChange={(e) => setSlotIntervalMinutes(e.target.value)} className="h-14 border-2 rounded-2xl px-6 font-black" />
-                  <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">
-                    Define o tamanho dos "blocos" na agenda. Recomenda-se 15, 30 ou 60 minutos.
-                  </p>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Intervalo entre Vagas (Minutos)</Label>
+                  <Input type="number" value={slotIntervalMinutes} onChange={(e) => setSlotIntervalMinutes(e.target.value)} className="h-14 border-2 rounded-2xl px-6 font-bold" />
                 </div>
               </div>
             </CardContent>
@@ -258,31 +245,23 @@ export default function AdminSettings() {
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
             <CardHeader className="bg-secondary/10">
               <CardTitle>Notificações</CardTitle>
-              <CardDescription>Configure como você e seus clientes são avisados.</CardDescription>
+              <CardDescription>Configure como as notificações são enviadas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 p-8">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-6 rounded-3xl bg-secondary/10">
-                  <div className="space-y-1">
-                    <Label className="text-base font-black">Confirmação Instantânea</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Ativa o botão de WhatsApp direto para o cliente após agendar.</p>
-                  </div>
-                  <Switch checked={notifyInstant} onCheckedChange={setNotifyInstant} />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base font-bold">Confirmação Instantânea</Label>
+                  <p className="text-sm text-muted-foreground">Envia mensagem assim que o cliente agenda.</p>
                 </div>
-                <Separator />
-                <div className="flex items-center justify-between p-6 rounded-3xl bg-secondary/10">
-                  <div className="space-y-1">
-                    <Label className="text-base font-black">Lembrete 24h</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Prepara os dados para o assistente de IA enviar lembretes automáticos.</p>
-                  </div>
-                  <Switch checked={notifyReminder24h} onCheckedChange={setNotifyReminder24h} />
-                </div>
+                <Switch checked={notifyInstant} onCheckedChange={setNotifyInstant} />
               </div>
-              <div className="p-4 bg-primary/5 border-2 border-primary/20 rounded-2xl flex gap-4 items-start">
-                <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <p className="text-xs font-medium text-primary leading-relaxed">
-                  <strong>Atenção:</strong> Por segurança do WhatsApp, as mensagens automáticas devem ser confirmadas através do Assistente de Mensagens AI no menu lateral.
-                </p>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base font-bold">Lembrete 24h</Label>
+                  <p className="text-sm text-muted-foreground">Reduza faltas enviando um lembrete um dia antes.</p>
+                </div>
+                <Switch checked={notifyReminder24h} onCheckedChange={setNotifyReminder24h} />
               </div>
             </CardContent>
           </Card>
@@ -303,9 +282,6 @@ export default function AdminSettings() {
                   placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
                   className="min-h-[150px] text-lg font-bold p-8 border-2 rounded-3xl"
                 />
-                <p className="text-xs text-muted-foreground font-medium italic">
-                  Este texto aparecerá em um banner colorido no topo da sua página de agendamento para os clientes.
-                </p>
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Suspense, useCallback, useRef } from "react";
@@ -16,6 +15,7 @@ import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@
 import { collection, doc } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { maskPhone } from "@/lib/utils";
 
 function AdminMessagesContent() {
   const { user } = useUser();
@@ -89,9 +89,8 @@ function AdminMessagesContent() {
       appointmentDateTime: formattedDate,
     }));
 
-    setClientPhone(apt.clientPhone || "");
+    setClientPhone(maskPhone(apt.clientPhone || ""));
 
-    // Atualiza a URL para manter o Select em sincronia visual sem recarregar a página
     const params = new URLSearchParams(window.location.search);
     params.set('appointmentId', appointmentId);
     window.history.replaceState(null, '', `?${params.toString()}`);
@@ -104,7 +103,6 @@ function AdminMessagesContent() {
     });
   }, [appointments, services, toast]);
 
-  // Efeito para auto-carregar o agendamento se vier via URL ou mudar
   useEffect(() => {
     if (!loadingApts && appointments && services && appointmentIdParam && appointmentIdParam !== lastLoadedId.current) {
       handleSelectAppointment(appointmentIdParam);
@@ -239,7 +237,7 @@ function AdminMessagesContent() {
                   <Input 
                     placeholder="(11) 99999-9999" 
                     value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
+                    onChange={(e) => setClientPhone(maskPhone(e.target.value))}
                     className="h-11"
                   />
                 </div>

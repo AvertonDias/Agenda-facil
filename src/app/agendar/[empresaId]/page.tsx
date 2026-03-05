@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -29,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, maskPhone } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const DAY_MAP = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -48,7 +47,6 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const [clientPhone, setClientPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Queries
   const empresaRef = useMemoFirebase(() => doc(db, "empresas", empresaId), [db, empresaId]);
   const servicesQuery = useMemoFirebase(() => collection(db, "empresas", empresaId, "servicos"), [db, empresaId]);
   const colabsQuery = useMemoFirebase(() => collection(db, "empresas", empresaId, "colaboradores"), [db, empresaId]);
@@ -74,7 +72,6 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
 
-  // Geração de horários respeitando horário de funcionamento
   const timeSlots = useMemo(() => {
     if (!companyData || !selectedDate) return [];
 
@@ -105,10 +102,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
     
-    // Bloqueia se já passou do horário atual (para hoje)
     if (isSameDay(selectedDate, new Date()) && isBefore(slotStart, new Date())) return true;
     
-    // Bloqueia se não respeita a antecedência mínima
     if (isBefore(slotStart, addHours(new Date(), minLeadTime))) return true;
 
     const slotEnd = addMinutes(slotStart, totalDuration || 30);
@@ -149,7 +144,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     const aptsRef = collection(db, "empresas", empresaId, "agendamentos");
     addDocumentNonBlocking(aptsRef, appointmentData)
       .then(() => {
-        setStep(5); // Sucesso
+        setStep(5);
       })
       .catch(() => {
         toast({ title: "Erro", description: "Não foi possível realizar o agendamento.", variant: "destructive" });
@@ -421,7 +416,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                 <Input 
                   placeholder="(00) 00000-0000" 
                   value={clientPhone} 
-                  onChange={(e) => setClientPhone(e.target.value)}
+                  onChange={(e) => setClientPhone(maskPhone(e.target.value))}
                   className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary"
                 />
               </div>

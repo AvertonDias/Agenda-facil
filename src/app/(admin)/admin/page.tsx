@@ -13,15 +13,15 @@ import {
   Plus
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, limit } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { format } from "date-fns";
 
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries simplificadas sem filtros para depurar permissões e falta de índices
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "agendamentos");
@@ -43,8 +43,11 @@ export default function AdminDashboard() {
 
   const isInitialLoading = isUserLoading || loadingApts || loadingServices || loadingColabs;
 
-  // Mostra apenas os 10 mais recentes na memória
-  const appointments = allAppointments?.slice(0, 10);
+  // Mostra apenas os mais recentes baseados em startTime
+  const appointments = allAppointments
+    ?.filter(apt => !!apt.startTime)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    .slice(0, 10);
 
   // Cálculos básicos baseados nos dados reais
   const totalFaturamento = allAppointments?.reduce((acc, apt) => {
@@ -138,11 +141,15 @@ export default function AdminDashboard() {
                 appointments.map((apt) => {
                   const service = services?.find(s => s.id === apt.serviceId);
                   const employee = collaborators?.find(e => e.id === apt.employeeId);
+                  const aptTime = format(new Date(apt.startTime), "HH:mm");
+                  const aptDate = format(new Date(apt.startTime), "dd/MM");
+
                   return (
                     <div key={apt.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-secondary transition-hover hover:border-primary/50">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-primary border shadow-sm text-xs">
-                          {apt.time}
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-primary border shadow-sm text-[10px] flex-col leading-none gap-1">
+                          <span>{aptTime}</span>
+                          <span className="text-[8px] opacity-60">{aptDate}</span>
                         </div>
                         <div>
                           <p className="font-semibold">{apt.clientName}</p>

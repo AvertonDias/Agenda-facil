@@ -8,19 +8,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Regra para Empresas e Subcoleções
-    match /empresas/{empresaId} {
-      // Permite ler o documento da empresa
-      allow read, write: if request.auth != null && request.auth.uid == empresaId;
+    // Regra para Empresas e Subcoleções (Modelo Ultra-Explícito e Recursivo)
+    match /databases/{database}/documents/empresas/{empresaId} {
+      // Permite ler/escrever o documento da empresa
+      allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
 
-      // Permite LISTAR e LER agendamentos de forma explícita
-      match /agendamentos/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == empresaId;
-      }
-
-      // Permite qualquer outra subcoleção de forma recursiva
-      match /{allSubcollections=**} {
-        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      // Permite acesso recursivo total a todas as subcoleções (agendamentos, servicos, colaboradores)
+      // O curinga {anything=**} garante que listagem e leitura funcionem em qualquer profundidade
+      match /{anything=**} {
+        allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }
     }
     

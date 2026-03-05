@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -58,18 +59,19 @@
     "Appointment": {
       "title": "Appointment",
       "type": "object",
-      "description": "Agendamento de serviço.",
+      "description": "Agendamento de serviço com modelo de tempo robusto.",
       "properties": {
         "id": { "type": "string" },
         "clientName": { "type": "string" },
         "clientPhone": { "type": "string" },
         "serviceId": { "type": "string" },
         "employeeId": { "type": "string" },
-        "date": { "type": "string" },
-        "time": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de início" },
+        "endTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de fim" },
+        "timezone": { "type": "string", "description": "Fuso horário original (ex: America/Sao_Paulo)" },
         "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado"] }
       },
-      "required": ["id", "clientName", "serviceId", "employeeId", "date", "time"]
+      "required": ["id", "clientName", "serviceId", "employeeId", "startTime", "endTime", "timezone"]
     }
   },
   "auth": {

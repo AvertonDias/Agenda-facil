@@ -17,6 +17,23 @@ import { collection } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+const statusColors = {
+  pendente: 'bg-yellow-100 text-yellow-700',
+  confirmado: 'bg-blue-100 text-blue-700',
+  concluido: 'bg-green-100 text-green-700',
+  cancelado: 'bg-red-100 text-red-700',
+  nao_compareceu: 'bg-gray-100 text-gray-700',
+};
+
+const statusLabels = {
+  pendente: 'Pendente',
+  confirmado: 'Confirmado',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
+  nao_compareceu: 'Faltou',
+};
 
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
@@ -51,6 +68,7 @@ export default function AdminDashboard() {
 
   // Cálculos básicos baseados nos dados reais
   const totalFaturamento = allAppointments?.reduce((acc, apt) => {
+    if (apt.status === 'cancelado') return acc;
     const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
     const aptServices = services?.filter(s => aptServiceIds.includes(s.id));
     const aptTotal = aptServices?.reduce((sum, s) => sum + (s.basePrice || 0), 0) || 0;
@@ -60,7 +78,7 @@ export default function AdminDashboard() {
   const stats = [
     { 
       label: "Agendamentos", 
-      value: allAppointments?.length.toString() || "0", 
+      value: allAppointments?.filter(a => a.status !== 'cancelado').length.toString() || "0", 
       icon: CalendarIcon, 
       color: "text-blue-500", 
       bg: "bg-blue-50" 
@@ -146,6 +164,7 @@ export default function AdminDashboard() {
                   const employee = collaborators?.find(e => e.id === apt.employeeId);
                   const aptTime = format(new Date(apt.startTime), "HH:mm");
                   const aptDate = format(new Date(apt.startTime), "dd/MM");
+                  const currentStatus = apt.status as keyof typeof statusColors || 'pendente';
 
                   return (
                     <div key={apt.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-secondary transition-hover hover:border-primary/50">
@@ -162,8 +181,8 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-[10px] px-2 py-1 rounded-full uppercase font-bold ${apt.status === 'confirmado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                          {apt.status || 'pendente'}
+                        <span className={cn("text-[10px] px-2 py-1 rounded-full uppercase font-bold", statusColors[currentStatus])}>
+                          {statusLabels[currentStatus] || 'Pendente'}
                         </span>
                       </div>
                     </div>

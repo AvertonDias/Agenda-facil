@@ -69,7 +69,7 @@
         "startTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de início" },
         "endTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de fim" },
         "timezone": { "type": "string", "description": "Fuso horário original (ex: America/Sao_Paulo)" },
-        "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado"] }
+        "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado", "concluido", "nao_compareceu"] }
       },
       "required": ["id", "clientName", "serviceIds", "employeeId", "startTime", "endTime", "timezone"]
     }

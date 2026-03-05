@@ -18,7 +18,8 @@ import {
   Trash2,
   Edit2,
   Calendar as CalendarIcon,
-  X
+  X,
+  AlertCircle
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
@@ -31,7 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,6 +58,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
+const statusConfig = {
+  pendente: { label: "Pendente", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  confirmado: { label: "Confirmado", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  concluido: { label: "Concluído", color: "bg-green-100 text-green-700 border-green-200" },
+  cancelado: { label: "Cancelado", color: "bg-red-100 text-red-700 border-red-200" },
+  nao_compareceu: { label: "Não Compareceu", color: "bg-gray-100 text-gray-700 border-gray-200" },
+};
+
 export default function AdminAgenda() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const { user, isUserLoading } = useUser();
@@ -71,6 +80,7 @@ export default function AdminAgenda() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("confirmado");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -145,7 +155,7 @@ export default function AdminAgenda() {
     const slotEnd = addMinutes(slotStart, totalDuration || slotInterval);
 
     return allAppointments.some(apt => {
-      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployee) return false;
+      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployee || apt.status === 'cancelado') return false;
       const aptStart = parseISO(apt.startTime);
       const aptEnd = parseISO(apt.endTime);
       
@@ -160,6 +170,7 @@ export default function AdminAgenda() {
     setClientPhone(apt.clientPhone || "");
     setSelectedServiceIds(apt.serviceIds || [apt.serviceId].filter(Boolean));
     setSelectedEmployee(apt.employeeId);
+    setSelectedStatus(apt.status || "confirmado");
     if (apt.startTime) {
       const start = parseISO(apt.startTime);
       setSelectedDate(start);
@@ -194,7 +205,7 @@ export default function AdminAgenda() {
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       timezone: "America/Sao_Paulo",
-      status: 'confirmado',
+      status: selectedStatus,
       updatedAt: new Date().toISOString(),
     };
 
@@ -230,6 +241,7 @@ export default function AdminAgenda() {
     setSelectedServiceIds([]);
     setSelectedEmployee("");
     setSelectedTime("");
+    setSelectedStatus("confirmado");
     setSelectedDate(date || new Date());
     setEditingAppointmentId(null);
   };
@@ -327,23 +339,40 @@ export default function AdminAgenda() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
-              <Select onValueChange={setSelectedEmployee} value={selectedEmployee}>
-                <SelectTrigger className="h-12 border-2 rounded-xl">
-                  <SelectValue placeholder="Selecione o profissional" />
-                </SelectTrigger>
-                <SelectContent>
-                  {collaborators?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
+                <Select onValueChange={setSelectedEmployee} value={selectedEmployee}>
+                  <SelectTrigger className="h-12 border-2 rounded-xl">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collaborators?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
+                <Select onValueChange={setSelectedStatus} value={selectedStatus}>
+                  <SelectTrigger className="h-12 border-2 rounded-xl">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="confirmado">Confirmado</SelectItem>
+                    <SelectItem value="concluido">Concluído</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                    <SelectItem value="nao_compareceu">Não Compareceu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Horários Disponíveis</Label>
               {selectedServiceIds.length === 0 || !selectedEmployee ? (
                 <div className="p-4 border-2 border-dashed rounded-xl bg-secondary/5 text-center">
-                  <p className="text-xs text-muted-foreground font-bold">Selecione ao menos um serviço e um profissional.</p>
+                  <p className="text-xs text-muted-foreground font-bold">Selecione ao menos um serviço e um profissional para ver as vagas.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto p-2 border-2 rounded-xl bg-background">
@@ -415,6 +444,7 @@ export default function AdminAgenda() {
                 const appointmentServices = services?.filter(s => (apt.serviceIds || [apt.serviceId]).includes(s.id));
                 const employee = collaborators?.find(e => e.id === apt.employeeId);
                 const aptTime = format(parseISO(apt.startTime), "HH:mm");
+                const currentStatus = statusConfig[apt.status as keyof typeof statusConfig] || statusConfig.pendente;
 
                 return (
                   <div key={apt.id} className="group relative flex gap-4 p-6 hover:bg-secondary/5 transition-all">
@@ -426,7 +456,12 @@ export default function AdminAgenda() {
                     <div className="flex-1 space-y-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="text-lg font-black">{apt.clientName}</h4>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="text-lg font-black">{apt.clientName}</h4>
+                            <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5", currentStatus.color)}>
+                              {currentStatus.label}
+                            </Badge>
+                          </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1.5 font-bold">
                             <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone || "Sem tel"}
                           </p>

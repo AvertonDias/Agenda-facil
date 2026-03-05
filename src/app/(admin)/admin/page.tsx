@@ -51,8 +51,10 @@ export default function AdminDashboard() {
 
   // Cálculos básicos baseados nos dados reais
   const totalFaturamento = allAppointments?.reduce((acc, apt) => {
-    const service = services?.find(s => s.id === apt.serviceId);
-    return acc + (service?.basePrice || 0);
+    const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
+    const aptServices = services?.filter(s => aptServiceIds.includes(s.id));
+    const aptTotal = aptServices?.reduce((sum, s) => sum + (s.basePrice || 0), 0) || 0;
+    return acc + aptTotal;
   }, 0) || 0;
 
   const stats = [
@@ -139,7 +141,8 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               {appointments && appointments.length > 0 ? (
                 appointments.map((apt) => {
-                  const service = services?.find(s => s.id === apt.serviceId);
+                  const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
+                  const firstService = services?.find(s => s.id === aptServiceIds[0]);
                   const employee = collaborators?.find(e => e.id === apt.employeeId);
                   const aptTime = format(new Date(apt.startTime), "HH:mm");
                   const aptDate = format(new Date(apt.startTime), "dd/MM");
@@ -154,7 +157,7 @@ export default function AdminDashboard() {
                         <div>
                           <p className="font-semibold">{apt.clientName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {service?.name || 'Serviço'} com {employee?.name || 'Profissional'}
+                            {aptServiceIds.length > 1 ? `${firstService?.name} + ${aptServiceIds.length - 1}` : (firstService?.name || 'Serviço')} com {employee?.name || 'Profissional'}
                           </p>
                         </div>
                       </div>

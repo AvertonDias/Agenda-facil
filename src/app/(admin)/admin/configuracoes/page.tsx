@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle } from "lucide-react";
+import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";

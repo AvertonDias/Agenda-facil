@@ -15,8 +15,21 @@ O **AgendaFácil Pro** é uma solução completa para automatizar agendamentos, 
 
 ## Como subir para o GitHub
 
-Para conectar este projeto ao seu repositório remoto, utilize os seguintes comandos no seu terminal:
+Se você recebeu o erro `updates were rejected because the remote contains work that you do not have locally`, utilize os comandos abaixo para forçar a sincronização inicial:
 
+### 1. Sincronizar arquivos do GitHub com o local:
+```bash
+git pull origin main --allow-unrelated-histories
+```
+
+### 2. Agora, envie seus arquivos:
+```bash
+git push -u origin main
+```
+
+---
+
+### Comandos Iniciais (Caso esteja começando do zero):
 ```bash
 git init
 git add .
@@ -31,5 +44,3 @@ git push -u origin main
 - **Firebase** (Auth & Firestore)
 - **Genkit** (Google AI)
 - **Tailwind CSS** & **Shadcn UI**
-# Agenda-facil
-# Agenda-facil

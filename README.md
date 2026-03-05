@@ -31,3 +31,4 @@ git push -u origin main
 - **Firebase** (Auth & Firestore)
 - **Genkit** (Google AI)
 - **Tailwind CSS** & **Shadcn UI**
+# Agenda-facil

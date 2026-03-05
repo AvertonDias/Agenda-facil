@@ -1,24 +1,25 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regra para perfis de usuários
+    // 1. Regra para Perfis de Usuários
     match /perfis_usuarios/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Regra para Empresas e Subcoleções (Abordagem Recursiva e Explícita)
+    // 2. Regra para o DOCUMENTO da Empresa
     match /empresas/{empresaId} {
-      // Permite ler e editar o documento da própria empresa
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
-
-      // Permite ler e editar QUALQUER subcoleção (agendamentos, servicos, colaboradores, etc.)
+      
+      // 3. Regra Recursiva Explícita para Subcoleções
+      // Garante que o dono da empresa tenha acesso total a agendamentos, servicos, etc.
       match /{allPaths=**} {
         allow read, write: if request.auth != null && request.auth.uid == empresaId;
       }
     }
     
-    // Bloqueio preventivo padrão para qualquer outro caminho
+    // Bloqueio preventivo padrão
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -15,11 +16,12 @@ import {
   MoreVertical,
   Phone,
   Check,
-  Info
+  Info,
+  Trash2
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -38,6 +40,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAgenda() {
@@ -119,6 +127,16 @@ export default function AdminAgenda() {
       .finally(() => setIsSubmitting(false));
   };
 
+  const handleDeleteAppointment = (appointmentId: string) => {
+    if (!user) return;
+    const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
+    deleteDocumentNonBlocking(docRef);
+    toast({
+      title: "Agendamento removido",
+      variant: "destructive",
+    });
+  };
+
   const resetForm = () => {
     setClientName("");
     setClientPhone("");
@@ -146,7 +164,6 @@ export default function AdminAgenda() {
 
   const isSlotBusy = (time: string) => {
     if (!appointments || !selectedEmployee) return false;
-    // Verifica se o profissional já tem agendamento neste horário exato
     return appointments.some(apt => apt.time === time && apt.employeeId === selectedEmployee);
   };
 
@@ -287,7 +304,6 @@ export default function AdminAgenda() {
       </Dialog>
 
       <div className="flex flex-col gap-8 flex-1">
-        {/* Seção do Calendário e Resumo empilhados */}
         <div className="flex flex-col gap-6">
           <Card className="border-none shadow-sm overflow-hidden bg-white">
             <CardHeader className="pb-2 border-b bg-secondary/10">
@@ -329,7 +345,6 @@ export default function AdminAgenda() {
           </Card>
         </div>
 
-        {/* Seção dos Agendamentos */}
         <div className="w-full">
           <Card className="border-none shadow-sm h-full flex flex-col bg-white">
             <CardHeader className="border-b bg-card/50 sticky top-0 z-10">
@@ -389,9 +404,21 @@ export default function AdminAgenda() {
                                   )}>
                                     {apt.status || 'pendente'}
                                   </span>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <MoreVertical className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem 
+                                        className="gap-2 text-destructive"
+                                        onClick={() => handleDeleteAppointment(apt.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" /> Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
                               </div>
 

@@ -16,10 +16,12 @@ service cloud.firestore {
 
       // Agendamentos
       match /agendamentos/{docId} {
-        // Público pode criar agendamentos
-        allow create: if true;
-        // Apenas o dono pode gerenciar a lista
-        allow get, list, update, delete: if request.auth != null && request.auth.uid == empresaId;
+        // Público pode criar agendamentos e listar para verificar disponibilidade de horários
+        // Nota: Em produção, o ideal é não expor nomes/telefones, mas para o protótipo
+        // isso permite que o motor de disponibilidade no cliente funcione.
+        allow create, list, get: if true;
+        // Apenas o dono pode gerenciar (update, delete)
+        allow update, delete: if request.auth != null && request.auth.uid == empresaId;
       }
       
       // Serviços (Público precisa ver para escolher)
@@ -34,7 +36,13 @@ service cloud.firestore {
         allow write: if request.auth != null && request.auth.uid == empresaId;
       }
 
-      // Regra recursiva para o dono
+      // Fidelidade (Público pode ver seus próprios pontos via telefone ao finalizar agendamento)
+      match /fidelidade/{phone} {
+        allow get: if true;
+        allow list, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+
+      // Regra recursiva para o dono (Admin) ter acesso total a tudo da sua empresa
       match /{anything=**} {
         allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }

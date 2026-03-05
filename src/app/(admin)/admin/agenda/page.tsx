@@ -141,6 +141,14 @@ export default function AdminAgenda() {
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
 
+  const filteredCollaborators = useMemo(() => {
+    if (!collaborators) return [];
+    if (selectedServiceIds.length === 0) return collaborators;
+    return collaborators.filter(c => 
+      selectedServiceIds.every(sId => c.offeredServiceIds?.includes(sId))
+    );
+  }, [collaborators, selectedServiceIds]);
+
   const appointments = useMemo(() => {
     if (!allAppointments || !date) return [];
     return allAppointments
@@ -433,10 +441,13 @@ export default function AdminAgenda() {
                 <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
                 <Select onValueChange={setSelectedEmployee} value={selectedEmployee}>
                   <SelectTrigger className="h-12 border-2 rounded-xl">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={selectedServiceIds.length === 0 ? "Escolha o serviço primeiro" : "Selecione"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {collaborators?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {filteredCollaborators.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {selectedServiceIds.length > 0 && filteredCollaborators.length === 0 && (
+                      <p className="text-[10px] p-2 text-muted-foreground font-bold">Nenhum profissional faz todos os serviços selecionados.</p>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

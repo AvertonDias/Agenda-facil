@@ -23,7 +23,13 @@ Se você recebeu o erro `fatal: Need to specify how to reconcile divergent branc
 git pull origin main --no-rebase --allow-unrelated-histories
 ```
 
-### 2. Agora, envie seus arquivos:
+### 2. Dica: "Waiting for your editor to close the file..."
+Se o terminal travar com essa mensagem após o comando acima:
+1. Olhe as abas de arquivos abertas no topo deste editor.
+2. Procure por uma aba chamada `MERGE_MSG`.
+3. **Feche essa aba** (clique no 'x'). O terminal destravará na hora.
+
+### 3. Agora, envie seus arquivos:
 ```bash
 git push -u origin main
 ```

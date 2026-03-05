@@ -12,20 +12,28 @@ import {
   Loader2,
   Plus
 } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { collection, doc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 const statusColors = {
-  pendente: 'bg-yellow-100 text-yellow-700',
-  confirmado: 'bg-blue-100 text-blue-700',
-  concluido: 'bg-green-100 text-green-700',
-  cancelado: 'bg-red-100 text-red-700',
-  nao_compareceu: 'bg-gray-100 text-gray-700',
+  pendente: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  confirmado: 'bg-blue-100 text-blue-700 border-blue-200',
+  concluido: 'bg-green-100 text-green-700 border-green-200',
+  cancelado: 'bg-red-100 text-red-700 border-red-200',
+  nao_compareceu: 'bg-gray-100 text-gray-700 border-gray-200',
 };
 
 const statusLabels = {
@@ -39,6 +47,12 @@ const statusLabels = {
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
+
+  const companyRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    return doc(db, "empresas", user.uid);
+  }, [db, user?.uid]);
 
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
@@ -55,6 +69,7 @@ export default function AdminDashboard() {
     return collection(db, "empresas", user.uid, "colaboradores");
   }, [db, user?.uid, isUserLoading]);
 
+  const { data: companyData } = useDoc(companyRef);
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
   const { data: services, isLoading: loadingServices } = useCollection(servicesQuery);
   const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
@@ -75,6 +90,34 @@ export default function AdminDashboard() {
     const aptTotal = aptServices?.reduce((sum, s) => sum + (s.basePrice || 0), 0) || 0;
     return acc + aptTotal;
   }, 0) || 0;
+
+  const handleQuickStatusUpdate = async (apt: any, newStatus: string) => {
+    if (!user) return;
+    const docRef = doc(db, "empresas", user.uid, "agendamentos", apt.id);
+    updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
+
+    if (newStatus === 'concluido' && companyData?.loyaltyEnabled) {
+      const cleanPhone = (apt.clientPhone || "").replace(/\D/g, '');
+      if (cleanPhone) {
+        const loyaltyDocRef = doc(db, "empresas", user.uid, "fidelidade", cleanPhone);
+        const loyaltySnap = await getDoc(loyaltyDocRef);
+        const currentPoints = loyaltySnap.exists() ? (loyaltySnap.data().points || 0) : 0;
+        const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
+        
+        setDocumentNonBlocking(loyaltyDocRef, {
+          phone: cleanPhone,
+          clientName: apt.clientName,
+          points: currentPoints + pointsToAdd,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+    }
+
+    toast({ 
+      title: "Status atualizado!",
+      description: newStatus === 'concluido' ? "Atendimento finalizado e pontos creditados." : `Status alterado para ${statusLabels[newStatus as keyof typeof statusLabels]}.`
+    });
+  };
 
   const stats = [
     { 
@@ -184,9 +227,20 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={cn("text-[10px] px-2 py-1 rounded-full uppercase font-bold", statusColors[currentStatus])}>
-                          {statusLabels[currentStatus] || 'Pendente'}
-                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Badge className={cn("text-[10px] px-2 py-1 rounded-full uppercase font-bold cursor-pointer hover:opacity-80 transition-opacity border-2", statusColors[currentStatus])}>
+                              {statusLabels[currentStatus] || 'Pendente'}
+                            </Badge>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {Object.keys(statusLabels).map((key) => (
+                              <DropdownMenuItem key={key} onClick={() => handleQuickStatusUpdate(apt, key)} className="text-[10px] font-black uppercase">
+                                {statusLabels[key as keyof typeof statusLabels]}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   )
@@ -231,3 +285,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+

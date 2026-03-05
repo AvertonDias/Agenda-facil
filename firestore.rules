@@ -7,31 +7,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Regra para Empresas e Subcoleções
+    // Regra para Empresas e Subcoleções (Abordagem Recursiva e Explícita)
     match /empresas/{empresaId} {
-      // Permite ler/escrever o documento da própria empresa
+      // Permite ler e editar o documento da própria empresa
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
 
-      // Regras explícitas para subcoleções para evitar erros de 'list'
-      match /agendamentos/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == empresaId;
-      }
-      
-      match /servicos/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == empresaId;
-      }
-      
-      match /colaboradores/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == empresaId;
-      }
-
-      // Cobre qualquer outro caminho aninhado
+      // Permite ler e editar QUALQUER subcoleção (agendamentos, servicos, colaboradores, etc.)
       match /{allPaths=**} {
         allow read, write: if request.auth != null && request.auth.uid == empresaId;
       }
     }
     
-    // Bloqueio preventivo padrão
+    // Bloqueio preventivo padrão para qualquer outro caminho
     match /{document=**} {
       allow read, write: if false;
     }

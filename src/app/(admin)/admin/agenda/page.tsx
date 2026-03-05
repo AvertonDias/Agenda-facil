@@ -14,7 +14,8 @@ import {
   ChevronRight,
   MoreVertical,
   Phone,
-  Check
+  Check,
+  Info
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
@@ -132,6 +133,23 @@ export default function AdminAgenda() {
     "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
   ];
 
+  const calculateEndTime = (startTime: string, duration: number) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + duration;
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const selectedServiceData = services?.find(s => s.id === selectedService);
+  const serviceDuration = selectedServiceData?.durationMinutes || 30;
+
+  const isSlotBusy = (time: string) => {
+    if (!appointments || !selectedEmployee) return false;
+    // Verifica se o profissional já tem agendamento neste horário exato
+    return appointments.some(apt => apt.time === time && apt.employeeId === selectedEmployee);
+  };
+
   return (
     <div className="h-full flex flex-col space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -140,7 +158,7 @@ export default function AdminAgenda() {
             <CalendarDays className="w-8 h-8 text-primary" />
             Agenda
           </h1>
-          <p className="text-muted-foreground">Visualize e organize seus atendimentos diários.</p>
+          <p className="text-muted-foreground">Gerencie seus horários e compromissos.</p>
         </div>
         <Button 
           className="gap-2 shadow-lg hover:shadow-xl transition-all"
@@ -151,7 +169,6 @@ export default function AdminAgenda() {
         </Button>
       </div>
 
-      {/* Modal de Novo Agendamento */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -191,7 +208,7 @@ export default function AdminAgenda() {
                   </SelectTrigger>
                   <SelectContent>
                     {services?.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      <SelectItem key={s.id} value={s.id}>{s.name} ({s.durationMinutes}min)</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -212,25 +229,56 @@ export default function AdminAgenda() {
             </div>
 
             <div className="space-y-2">
-              <Label>Horário Disponível (para {date ? format(date, "dd/MM") : ""})</Label>
-              <div className="grid grid-cols-4 gap-2 h-[120px] overflow-y-auto p-2 border rounded-md bg-secondary/10">
-                {timeSlots.map(time => (
-                  <Button
-                    key={time}
-                    variant={selectedTime === time ? "default" : "outline"}
-                    size="sm"
-                    className="text-xs h-8"
-                    onClick={() => setSelectedTime(time)}
-                  >
-                    {time}
-                  </Button>
-                ))}
+              <div className="flex justify-between items-end mb-2">
+                <Label className="flex items-center gap-1.5">
+                  Horário Disponível 
+                  {selectedServiceData && (
+                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                      {selectedServiceData.name} - {serviceDuration}min
+                    </span>
+                  )}
+                </Label>
+                <span className="text-[10px] text-muted-foreground italic">
+                  * {date ? format(date, "dd/MM") : ""}
+                </span>
               </div>
+              
+              {!selectedService || !selectedEmployee ? (
+                <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-md bg-secondary/5 text-center">
+                  <Info className="w-5 h-5 text-muted-foreground mb-2" />
+                  <p className="text-xs text-muted-foreground">Selecione o serviço e o profissional para ver os horários.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 h-[160px] overflow-y-auto p-3 border rounded-md bg-secondary/10">
+                  {timeSlots.map(time => {
+                    const isBusy = isSlotBusy(time);
+                    const endTime = calculateEndTime(time, serviceDuration);
+                    
+                    return (
+                      <Button
+                        key={time}
+                        variant={selectedTime === time ? "default" : "outline"}
+                        size="sm"
+                        disabled={isBusy}
+                        className={cn(
+                          "text-xs h-10 flex flex-col items-center justify-center gap-0.5 leading-none transition-all",
+                          isBusy && "opacity-30 grayscale cursor-not-allowed",
+                          selectedTime === time && "ring-2 ring-primary ring-offset-1"
+                        )}
+                        onClick={() => setSelectedTime(time)}
+                      >
+                        <span className="font-bold">{time}</span>
+                        <span className="text-[9px] opacity-70">até {endTime}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateAppointment} disabled={isSubmitting}>
+            <Button onClick={handleCreateAppointment} disabled={isSubmitting || !selectedTime}>
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
               Confirmar Agendamento
             </Button>
@@ -239,11 +287,11 @@ export default function AdminAgenda() {
       </Dialog>
 
       <div className="flex flex-col gap-8 flex-1">
-        {/* Seção do Calendário */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Selecione a Data</CardTitle>
+        {/* Seção do Calendário e Resumo empilhados */}
+        <div className="flex flex-col gap-6">
+          <Card className="border-none shadow-sm overflow-hidden bg-white">
+            <CardHeader className="pb-2 border-b bg-secondary/10">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Calendário de Atendimentos</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Calendar
@@ -251,7 +299,7 @@ export default function AdminAgenda() {
                 selected={date}
                 onSelect={setDate}
                 locale={ptBR}
-                className="w-full flex justify-center p-4"
+                className="w-full flex justify-center p-6"
               />
             </CardContent>
           </Card>
@@ -260,48 +308,47 @@ export default function AdminAgenda() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Resumo do Dia</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Agendamentos</span>
-                <span className="font-bold">{appointments?.length || 0}</span>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground uppercase">Agendamentos</span>
+                <span className="text-2xl font-black">{appointments?.length || 0}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Confirmados</span>
-                <span className="font-bold text-green-600">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground uppercase">Confirmados</span>
+                <span className="text-2xl font-black text-green-600">
                   {appointments?.filter(a => a.status === 'confirmado').length || 0}
                 </span>
               </div>
-              <div className="pt-4 border-t">
-                 <p className="text-xs text-muted-foreground text-center">
-                   {date ? format(date, "dd 'de' MMMM", { locale: ptBR }) : ''}
+              <div className="col-span-2 pt-4 border-t border-primary/10">
+                 <p className="text-sm font-medium text-primary flex items-center gap-2">
+                   <CalendarDays className="w-4 h-4" />
+                   {date ? format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }) : ''}
                  </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Seção dos Agendamentos (Abaixo) */}
+        {/* Seção dos Agendamentos */}
         <div className="w-full">
-          <Card className="border-none shadow-sm h-full flex flex-col">
+          <Card className="border-none shadow-sm h-full flex flex-col bg-white">
             <CardHeader className="border-b bg-card/50 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl">
-                    {date ? format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }) : 'Selecione uma data'}
+                    Próximos Horários
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">Horários agendados</p>
+                  <p className="text-sm text-muted-foreground">Clique para ver detalhes do agendamento</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setDate(new Date())}>Hoje</Button>
-                </div>
+                <Button variant="ghost" size="sm" onClick={() => setDate(new Date())} className="text-xs">Ir para Hoje</Button>
               </div>
             </CardHeader>
             
-            <CardContent className="flex-1 p-0 overflow-auto max-h-[70vh]">
+            <CardContent className="flex-1 p-0 overflow-auto max-h-[800px]">
               {isInitialLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                  <p className="text-sm text-muted-foreground animate-pulse">Buscando horários...</p>
+                  <p className="text-sm text-muted-foreground animate-pulse font-medium">Buscando horários...</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border/50">
@@ -318,8 +365,8 @@ export default function AdminAgenda() {
                             key={apt.id} 
                             className="group flex gap-4 p-5 hover:bg-secondary/20 transition-all cursor-pointer relative"
                           >
-                            <div className="flex flex-col items-center justify-start pt-1 min-w-[60px]">
-                              <span className="text-lg font-bold text-foreground">{apt.time}</span>
+                            <div className="flex flex-col items-center justify-start pt-1 min-w-[65px]">
+                              <span className="text-lg font-black text-foreground">{apt.time}</span>
                               <div className={cn(
                                 "w-1 h-full mt-2 rounded-full",
                                 isConfirmed ? "bg-green-500" : "bg-yellow-500"
@@ -330,8 +377,8 @@ export default function AdminAgenda() {
                               <div className="flex justify-between items-start">
                                 <div>
                                   <h4 className="text-lg font-bold leading-none">{apt.clientName}</h4>
-                                  <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                                    <Phone className="w-3 h-3" />
+                                  <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
+                                    <Phone className="w-3.5 h-3.5 text-primary" />
                                     {apt.clientPhone || "Sem telefone"}
                                   </p>
                                 </div>
@@ -349,16 +396,19 @@ export default function AdminAgenda() {
                               </div>
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
                                   <Scissors className="w-4 h-4 text-primary" />
-                                  <span className="truncate">{service?.name || 'Serviço'}</span>
-                                  <span className="ml-auto font-bold text-foreground">
-                                    {service?.basePrice ? `R$ ${service.basePrice.toFixed(2)}` : '--'}
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="truncate font-semibold text-foreground leading-tight">{service?.name || 'Serviço'}</span>
+                                    <span className="text-[10px] opacity-70">Preço: {service?.basePrice ? `R$ ${service.basePrice.toFixed(2)}` : '--'}</span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
                                   <User className="w-4 h-4 text-accent" />
-                                  <span className="truncate">{employee?.name || 'Profissional'}</span>
+                                  <div className="flex flex-col">
+                                    <span className="truncate font-semibold text-foreground leading-tight">{employee?.name || 'Profissional'}</span>
+                                    <span className="text-[10px] opacity-70">Cargo: {employee?.role || '--'}</span>
+                                  </div>
                                   <ChevronRight className="w-3 h-3 ml-auto opacity-20" />
                                 </div>
                               </div>
@@ -368,19 +418,19 @@ export default function AdminAgenda() {
                       })
                   ) : (
                     <div className="flex flex-col items-center justify-center py-32 text-center px-4">
-                      <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                        <Clock className="w-8 h-8 text-muted-foreground/50" />
+                      <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mb-6">
+                        <Clock className="w-10 h-10 text-muted-foreground/40" />
                       </div>
-                      <h3 className="text-lg font-semibold">Tudo tranquilo por aqui</h3>
-                      <p className="text-muted-foreground max-w-[250px] mt-2">
-                        Nenhum agendamento marcado para o dia selecionado.
+                      <h3 className="text-xl font-bold">Nenhum agendamento para este dia</h3>
+                      <p className="text-muted-foreground max-w-[280px] mt-2 text-sm">
+                        Sua agenda está livre. Que tal abrir novos horários ou entrar em contato com seus clientes?
                       </p>
                       <Button 
                         variant="outline" 
-                        className="mt-6 gap-2 border-dashed"
+                        className="mt-8 gap-2 border-dashed font-bold px-8"
                         onClick={() => setIsDialogOpen(true)}
                       >
-                        <Plus className="w-4 h-4" /> Criar Primeiro Horário
+                        <Plus className="w-4 h-4" /> Novo Agendamento
                       </Button>
                     </div>
                   )}

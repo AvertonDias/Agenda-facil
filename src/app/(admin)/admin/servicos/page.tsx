@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Scissors, Clock, DollarSign, Loader2, MoreHorizontal, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Scissors, Clock, DollarSign, Loader2, MoreHorizontal, Edit2, Trash2, User, Sparkles, Zap, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +31,17 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+
+// Helper para selecionar o ícone baseado no nome
+export const getServiceIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes("corte") || n.includes("cabelo") || n.includes("tesoura")) return <Scissors className="w-5 h-5" />;
+  if (n.includes("barba") || n.includes("sobrancelha") || n.includes("pezinho")) return <User className="w-5 h-5" />;
+  if (n.includes("unha") || n.includes("manicure") || n.includes("pedicure") || n.includes("estética") || n.includes("limpeza")) return <Sparkles className="w-5 h-5" />;
+  if (n.includes("depilação") || n.includes("luzes") || n.includes("tintura") || n.includes("química")) return <Zap className="w-5 h-5" />;
+  if (n.includes("maquiagem") || n.includes("makeup")) return <Palette className="w-5 h-5" />;
+  return <Scissors className="w-5 h-5" />;
+};
 
 export default function AdminServices() {
   const { user, isUserLoading } = useUser();
@@ -67,7 +79,6 @@ export default function AdminServices() {
       setDuration("30");
       setPrice("0");
     }
-    // Atraso estratégico para garantir que o DropdownMenu feche antes do Dialog abrir, prevenindo UI freeze
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
@@ -163,8 +174,8 @@ export default function AdminServices() {
             <Card key={service.id} className="overflow-hidden border-none shadow-sm hover:ring-2 hover:ring-primary/20 transition-all">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Scissors className="w-5 h-5 text-primary" />
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    {getServiceIcon(service.name)}
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -175,7 +186,7 @@ export default function AdminServices() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
                         onSelect={(e) => {
-                          e.preventDefault(); // Previne fechamento abrupto que trava o foco
+                          e.preventDefault();
                           handleOpenDialog(service);
                         }} 
                         className="gap-2"

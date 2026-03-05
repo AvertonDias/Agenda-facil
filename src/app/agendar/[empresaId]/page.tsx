@@ -22,7 +22,9 @@ import {
   Zap,
   Gift,
   Trophy,
-  Plane
+  Plane,
+  Sparkles,
+  Palette
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { format, addMinutes, isBefore, addHours, parseISO, isSameDay, getDay } from "date-fns";
@@ -35,6 +37,17 @@ import { cn, maskPhone } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const DAY_MAP = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+// Helper para selecionar o ícone baseado no nome (replicado para manter isolamento)
+const getServiceIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes("corte") || n.includes("cabelo") || n.includes("tesoura")) return <Scissors className="w-6 h-6" />;
+  if (n.includes("barba") || n.includes("sobrancelha") || n.includes("pezinho")) return <User className="w-6 h-6" />;
+  if (n.includes("unha") || n.includes("manicure") || n.includes("pedicure") || n.includes("estética") || n.includes("limpeza")) return <Sparkles className="w-6 h-6" />;
+  if (n.includes("depilação") || n.includes("luzes") || n.includes("tintura") || n.includes("química")) return <Zap className="w-6 h-6" />;
+  if (n.includes("maquiagem") || n.includes("makeup")) return <Palette className="w-6 h-6" />;
+  return <Scissors className="w-6 h-6" />;
+};
 
 export default function PublicBookingPage(props: { params: Promise<{ empresaId: string }> }) {
   const { empresaId } = React.use(props.params);
@@ -262,7 +275,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
             <div className="bg-secondary/30 p-6 rounded-2xl text-left space-y-3 border-2 border-border/50">
               <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Resumo do Atendimento</p>
-              <p className="font-bold flex items-center gap-2"><Scissors className="w-4 h-4 text-primary" /> {selectedServices.map(s => s.name).join(" + ")}</p>
+              <p className="font-bold flex items-center gap-2">{getServiceIcon(selectedServices[0]?.name || "")} {selectedServices.map(s => s.name).join(" + ")}</p>
               <p className="font-bold flex items-center gap-2"><User className="w-4 h-4 text-primary" /> {currentEmployee?.name}</p>
               <p className="font-black text-primary flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
@@ -375,7 +388,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                         "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
                         selectedServiceIds.includes(service.id) ? "bg-primary text-white shadow-lg" : "bg-primary/10 text-primary"
                       )}>
-                        <Scissors className="w-6 h-6" />
+                        {getServiceIcon(service.name)}
                       </div>
                       <div>
                         <p className="font-bold text-lg">{service.name}</p>

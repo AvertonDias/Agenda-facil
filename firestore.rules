@@ -8,18 +8,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // 2. Regra para o DOCUMENTO da Empresa
+    // 2. Regra para o DOCUMENTO da Empresa e suas SUBCOLEÇÕES
+    // Utilizamos o curinga recursivo {allPaths=**} para garantir que o proprietário
+    // tenha acesso total a toda a sua árvore de dados.
     match /empresas/{empresaId} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
       
-      // 3. Regra Recursiva Explícita para Subcoleções
-      // Garante que o dono da empresa tenha acesso total a agendamentos, servicos, etc.
       match /{allPaths=**} {
         allow read, write: if request.auth != null && request.auth.uid == empresaId;
       }
     }
     
-    // Bloqueio preventivo padrão
+    // Bloqueio preventivo padrão para qualquer outro caminho
     match /{document=**} {
       allow read, write: if false;
     }

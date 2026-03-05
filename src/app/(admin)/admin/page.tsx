@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,14 +21,10 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Queries simplificadas para evitar erros de índice/permissão durante o carregamento inicial
+  // Queries simplificadas sem filtros para depurar permissões e falta de índices
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
-    // Removido o orderBy temporariamente para testar permissão básica sem necessidade de índice
-    return query(
-      collection(db, "empresas", user.uid, "agendamentos"),
-      limit(10)
-    );
+    return collection(db, "empresas", user.uid, "agendamentos");
   }, [db, user?.uid, isUserLoading]);
 
   const servicesQuery = useMemoFirebase(() => {
@@ -40,14 +37,17 @@ export default function AdminDashboard() {
     return collection(db, "empresas", user.uid, "colaboradores");
   }, [db, user?.uid, isUserLoading]);
 
-  const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
+  const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
   const { data: services, isLoading: loadingServices } = useCollection(servicesQuery);
   const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
 
   const isInitialLoading = isUserLoading || loadingApts || loadingServices || loadingColabs;
 
+  // Mostra apenas os 10 mais recentes na memória
+  const appointments = allAppointments?.slice(0, 10);
+
   // Cálculos básicos baseados nos dados reais
-  const totalFaturamento = appointments?.reduce((acc, apt) => {
+  const totalFaturamento = allAppointments?.reduce((acc, apt) => {
     const service = services?.find(s => s.id === apt.serviceId);
     return acc + (service?.basePrice || 0);
   }, 0) || 0;
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
   const stats = [
     { 
       label: "Agendamentos", 
-      value: appointments?.length.toString() || "0", 
+      value: allAppointments?.length.toString() || "0", 
       icon: CalendarIcon, 
       color: "text-blue-500", 
       bg: "bg-blue-50" 
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
                   return (
                     <div key={apt.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-secondary transition-hover hover:border-primary/50">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-primary border shadow-sm">
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center font-bold text-primary border shadow-sm text-xs">
                           {apt.time}
                         </div>
                         <div>

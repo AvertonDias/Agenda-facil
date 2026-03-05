@@ -18,11 +18,12 @@ import {
   Check,
   Info,
   Trash2,
-  Edit2
+  Edit2,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, doc } from "firebase/firestore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -68,9 +69,10 @@ export default function AdminAgenda() {
   const [selectedService, setSelectedService] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Queries protegidas e memoizadas
+  // Queries protegidas e memoizadas - Sem filtros para depurar permissão
   const servicesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
@@ -82,17 +84,19 @@ export default function AdminAgenda() {
   }, [db, user?.uid, isUserLoading]);
 
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid || !date || isUserLoading) return null;
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return query(
-      collection(db, "empresas", user.uid, "agendamentos"),
-      where("date", "==", dateStr)
-    );
-  }, [db, user?.uid, date, isUserLoading]);
+    if (!db || !user?.uid || isUserLoading) return null;
+    return collection(db, "empresas", user.uid, "agendamentos");
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);
-  const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
+  const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
+
+  // Filtragem manual por data para evitar necessidade de índices durante a depuração
+  const appointments = allAppointments?.filter(apt => {
+    const targetDate = format(date || new Date(), 'yyyy-MM-dd');
+    return apt.date === targetDate;
+  });
 
   const isInitialLoading = isUserLoading || loadingApts;
 
@@ -104,17 +108,16 @@ export default function AdminAgenda() {
     setSelectedEmployee(apt.employeeId);
     setSelectedTime(apt.time);
     
-    // Converte string yyyy-MM-dd para Date objeto para o picker
     if (apt.date) {
       const [year, month, day] = apt.date.split('-').map(Number);
-      setDate(new Date(year, month - 1, day));
+      setSelectedDate(new Date(year, month - 1, day));
     }
     
-    setIsDialogOpen(true);
+    setTimeout(() => setIsDialogOpen(true), 200);
   };
 
   const handleSaveAppointment = () => {
-    if (!user || !date || !clientName || !selectedService || !selectedEmployee || !selectedTime) {
+    if (!user || !selectedDate || !clientName || !selectedService || !selectedEmployee || !selectedTime) {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos do agendamento.",
@@ -124,7 +127,7 @@ export default function AdminAgenda() {
     }
 
     setIsSubmitting(true);
-    const dateStr = format(date, 'yyyy-MM-dd');
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
     
     const appointmentData = {
       clientName,
@@ -175,6 +178,7 @@ export default function AdminAgenda() {
     setSelectedService("");
     setSelectedEmployee("");
     setSelectedTime("");
+    setSelectedDate(date || new Date());
     setEditingAppointmentId(null);
   };
 
@@ -196,8 +200,14 @@ export default function AdminAgenda() {
   const serviceDuration = selectedServiceData?.durationMinutes || 30;
 
   const isSlotBusy = (time: string) => {
-    if (!appointments || !selectedEmployee) return false;
-    return appointments.some(apt => apt.time === time && apt.employeeId === selectedEmployee && apt.id !== editingAppointmentId);
+    if (!allAppointments || !selectedEmployee) return false;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return allAppointments.some(apt => 
+      apt.date === dateStr && 
+      apt.time === time && 
+      apt.employeeId === selectedEmployee && 
+      apt.id !== editingAppointmentId
+    );
   };
 
   return (
@@ -236,18 +246,18 @@ export default function AdminAgenda() {
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
+                      !selectedDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarDays className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+                    {selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={date}
-                    onSelect={setDate}
+                    selected={selectedDate}
+                    onSelect={(d) => d && setSelectedDate(d)}
                     initialFocus
                     locale={ptBR}
                   />
@@ -255,7 +265,7 @@ export default function AdminAgenda() {
               </Popover>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="clientName">Nome do Cliente</Label>
                 <Input 
@@ -276,7 +286,7 @@ export default function AdminAgenda() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Serviço</Label>
                 <Select onValueChange={setSelectedService} value={selectedService}>
@@ -316,7 +326,7 @@ export default function AdminAgenda() {
                   )}
                 </Label>
                 <span className="text-[10px] text-muted-foreground italic">
-                  * {date ? format(date, "dd/MM") : ""}
+                  * {selectedDate ? format(selectedDate, "dd/MM") : ""}
                 </span>
               </div>
               
@@ -365,9 +375,20 @@ export default function AdminAgenda() {
 
       <div className="flex flex-col gap-8 flex-1">
         <div className="flex flex-col gap-6">
-          <Card className="border-none shadow-sm overflow-hidden bg-white">
-            <CardHeader className="pb-2 border-b bg-secondary/10">
-              <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Calendário de Atendimentos</CardTitle>
+          <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl">
+            <CardHeader className="pb-4 border-b bg-secondary/5 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4" />
+                Calendário
+              </CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setDate(new Date())}
+                className="h-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
+              >
+                Hoje
+              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <Calendar
@@ -376,28 +397,36 @@ export default function AdminAgenda() {
                 onSelect={setDate}
                 locale={ptBR}
                 className="w-full flex justify-center p-6"
+                classNames={{
+                  day_selected: "bg-primary text-white hover:bg-primary/90 rounded-xl font-black",
+                  day_today: "bg-accent/10 text-accent font-black rounded-xl border border-accent/20",
+                  day: "h-12 w-12 p-0 font-medium aria-selected:opacity-100 rounded-xl transition-all hover:bg-secondary/50",
+                  head_cell: "text-muted-foreground rounded-md w-12 font-black text-[0.7rem] uppercase py-4 opacity-50",
+                  nav_button: "hover:bg-primary/10 hover:text-primary transition-colors rounded-lg",
+                  caption_label: "text-sm font-black uppercase tracking-widest text-foreground/80",
+                }}
               />
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm bg-primary/5">
+          <Card className="border-none shadow-sm bg-primary/5 rounded-xl border-l-4 border-l-primary">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Resumo do Dia</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-primary/70">Resumo de Atendimentos</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground uppercase">Agendamentos</span>
-                <span className="text-2xl font-black">{appointments?.length || 0}</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Total do Dia</span>
+                <span className="text-3xl font-black">{appointments?.length || 0}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground uppercase">Confirmados</span>
-                <span className="text-2xl font-black text-green-600">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Confirmados</span>
+                <span className="text-3xl font-black text-green-600">
                   {appointments?.filter(a => a.status === 'confirmado').length || 0}
                 </span>
               </div>
               <div className="col-span-2 pt-4 border-t border-primary/10">
-                 <p className="text-sm font-medium text-primary flex items-center gap-2">
-                   <CalendarDays className="w-4 h-4" />
+                 <p className="text-sm font-black text-primary flex items-center gap-2 uppercase tracking-tight">
+                   <Clock className="w-4 h-4" />
                    {date ? format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }) : ''}
                  </p>
               </div>
@@ -406,16 +435,15 @@ export default function AdminAgenda() {
         </div>
 
         <div className="w-full">
-          <Card className="border-none shadow-sm h-full flex flex-col bg-white">
-            <CardHeader className="border-b bg-card/50 sticky top-0 z-10">
+          <Card className="border-none shadow-sm h-full flex flex-col bg-white rounded-xl overflow-hidden">
+            <CardHeader className="border-b bg-card/50 sticky top-0 z-10 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl">
-                    Próximos Horários
+                  <CardTitle className="text-xl font-black tracking-tight">
+                    Linha do Tempo
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">Clique para ver detalhes do agendamento</p>
+                  <p className="text-xs text-muted-foreground font-medium">Lista cronológica de compromissos</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setDate(new Date())} className="text-xs">Ir para Hoje</Button>
               </div>
             </CardHeader>
             
@@ -428,7 +456,7 @@ export default function AdminAgenda() {
               ) : (
                 <div className="divide-y divide-border/50">
                   {appointments && appointments.length > 0 ? (
-                    appointments
+                    [...appointments]
                       .sort((a, b) => a.time.localeCompare(b.time))
                       .map((apt) => {
                         const service = services?.find(s => s.id === apt.serviceId);
@@ -438,7 +466,7 @@ export default function AdminAgenda() {
                         return (
                           <div 
                             key={apt.id} 
-                            className="group flex gap-4 p-5 hover:bg-secondary/20 transition-all cursor-pointer relative"
+                            className="group flex gap-4 p-5 hover:bg-secondary/20 transition-all relative"
                           >
                             <div className="flex flex-col items-center justify-start pt-1 min-w-[65px]">
                               <span className="text-lg font-black text-foreground">{apt.time}</span>
@@ -451,8 +479,8 @@ export default function AdminAgenda() {
                             <div className="flex-1 space-y-3">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <h4 className="text-lg font-bold leading-none">{apt.clientName}</h4>
-                                  <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
+                                  <h4 className="text-lg font-black leading-none tracking-tight">{apt.clientName}</h4>
+                                  <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5 font-bold">
                                     <Phone className="w-3.5 h-3.5 text-primary" />
                                     {apt.clientPhone || "Sem telefone"}
                                   </p>
@@ -466,20 +494,23 @@ export default function AdminAgenda() {
                                   </span>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary border transition-colors">
                                         <MoreVertical className="w-4 h-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuContent align="end" className="font-bold">
                                       <DropdownMenuItem 
                                         className="gap-2"
-                                        onClick={() => handleOpenEditDialog(apt)}
+                                        onSelect={(e) => {
+                                          e.preventDefault();
+                                          handleOpenEditDialog(apt);
+                                        }}
                                       >
                                         <Edit2 className="w-4 h-4" /> Editar
                                       </DropdownMenuItem>
                                       <DropdownMenuItem 
                                         className="gap-2 text-destructive"
-                                        onClick={() => handleDeleteAppointment(apt.id)}
+                                        onSelect={() => handleDeleteAppointment(apt.id)}
                                       >
                                         <Trash2 className="w-4 h-4" /> Excluir
                                       </DropdownMenuItem>
@@ -492,17 +523,16 @@ export default function AdminAgenda() {
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
                                   <Scissors className="w-4 h-4 text-primary" />
                                   <div className="flex flex-col">
-                                    <span className="truncate font-semibold text-foreground leading-tight">{service?.name || 'Serviço'}</span>
-                                    <span className="text-[10px] opacity-70">Preço: {service?.basePrice ? `R$ ${service.basePrice.toFixed(2)}` : '--'}</span>
+                                    <span className="truncate font-black text-foreground leading-tight text-xs uppercase tracking-tight">{service?.name || 'Serviço'}</span>
+                                    <span className="text-[10px] font-bold opacity-70">R$ {service?.basePrice ? service.basePrice.toFixed(2) : '--'}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
                                   <User className="w-4 h-4 text-accent" />
                                   <div className="flex flex-col">
-                                    <span className="truncate font-semibold text-foreground leading-tight">{employee?.name || 'Profissional'}</span>
-                                    <span className="text-[10px] opacity-70">Cargo: {employee?.role || '--'}</span>
+                                    <span className="truncate font-black text-foreground leading-tight text-xs uppercase tracking-tight">{employee?.name || 'Profissional'}</span>
+                                    <span className="text-[10px] font-bold opacity-70">{employee?.role || '--'}</span>
                                   </div>
-                                  <ChevronRight className="w-3 h-3 ml-auto opacity-20" />
                                 </div>
                               </div>
                             </div>
@@ -514,13 +544,13 @@ export default function AdminAgenda() {
                       <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mb-6">
                         <Clock className="w-10 h-10 text-muted-foreground/40" />
                       </div>
-                      <h3 className="text-xl font-bold">Nenhum agendamento para este dia</h3>
-                      <p className="text-muted-foreground max-w-[280px] mt-2 text-sm">
-                        Sua agenda está livre. Que tal abrir novos horários ou entrar em contato com seus clientes?
+                      <h3 className="text-xl font-black tracking-tight">Agenda Livre</h3>
+                      <p className="text-muted-foreground max-w-[280px] mt-2 text-sm font-medium">
+                        Nenhum agendamento para este dia. Que tal abrir novos horários?
                       </p>
                       <Button 
                         variant="outline" 
-                        className="mt-8 gap-2 border-dashed font-bold px-8"
+                        className="mt-8 gap-2 border-dashed font-black px-8 uppercase tracking-widest text-xs"
                         onClick={() => { resetForm(); setIsDialogOpen(true); }}
                       >
                         <Plus className="w-4 h-4" /> Novo Agendamento

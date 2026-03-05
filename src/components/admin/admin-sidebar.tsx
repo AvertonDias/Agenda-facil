@@ -12,9 +12,11 @@ import {
   Settings,
   TrendingUp,
   LogOut,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 import {
   Sidebar,
@@ -26,6 +28,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
@@ -40,7 +43,9 @@ const menuItems = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const auth = useAuth();
+  const { user } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
   const { state, setOpenMobile, isMobile } = useSidebar();
 
   const handleSignOut = async () => {
@@ -52,6 +57,16 @@ export function AdminSidebar() {
     if (isMobile) {
       setOpenMobile(false);
     }
+  };
+
+  const copyBookingLink = () => {
+    if (!user) return;
+    const url = `${window.location.origin}/agendar/${user.uid}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link copiado!",
+      description: "Envie para seus clientes agendarem sozinhos.",
+    });
   };
 
   return (
@@ -94,6 +109,36 @@ export function AdminSidebar() {
               </SidebarMenuItem>
             );
           })}
+
+          <div className="px-3 mt-4 mb-2">
+            <div className={cn("h-px bg-border", state === "collapsed" && "hidden")} />
+          </div>
+
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={copyBookingLink}
+              tooltip="Copiar Link de Agendamento"
+              className="text-primary hover:bg-primary/10"
+            >
+              <Copy className="w-5 h-5 shrink-0" />
+              <span>Copiar Link de Agendamento</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          
+          {user && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                tooltip="Ver Página Pública"
+                className="text-muted-foreground"
+              >
+                <Link href={`/agendar/${user.uid}`} target="_blank">
+                  <ExternalLink className="w-5 h-5 shrink-0" />
+                  <span>Ver Página Pública</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
 

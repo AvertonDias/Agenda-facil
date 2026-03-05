@@ -8,32 +8,39 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Regra para Empresas e suas Subcoleções (Modelo Ultra-Explícito)
+    // Regra para Empresas e suas Subcoleções
     match /empresas/{empresaId} {
-      // Permite ler/escrever o documento da própria empresa
-      allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
+      // Público pode ler informações básicas da empresa
+      allow get: if true;
+      allow write: if request.auth != null && request.auth.uid == empresaId;
 
-      // Permite acesso específico a subcoleções críticas de agendamentos
+      // Agendamentos
       match /agendamentos/{docId} {
-        allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
+        // Público pode criar agendamentos
+        allow create: if true;
+        // Apenas o dono pode gerenciar a lista
+        allow get, list, update, delete: if request.auth != null && request.auth.uid == empresaId;
       }
       
-      // Permite acesso aos catálogos
+      // Serviços (Público precisa ver para escolher)
       match /servicos/{docId} {
-        allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
+        allow get, list: if true;
+        allow write: if request.auth != null && request.auth.uid == empresaId;
       }
       
+      // Colaboradores (Público precisa ver para escolher)
       match /colaboradores/{docId} {
-        allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
+        allow get, list: if true;
+        allow write: if request.auth != null && request.auth.uid == empresaId;
       }
 
-      // Permite acesso recursivo total para qualquer outra subcoleção futura dentro da empresa
+      // Regra recursiva para o dono
       match /{anything=**} {
         allow get, list, write: if request.auth != null && request.auth.uid == empresaId;
       }
     }
     
-    // Bloqueio preventivo padrão para qualquer outro caminho não especificado
+    // Bloqueio preventivo padrão
     match /{document=**} {
       allow read, write: if false;
     }

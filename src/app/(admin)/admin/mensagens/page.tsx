@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Sparkles, Copy, Send, Loader2, Settings, Calendar, User, Search } from "lucide-react";
+import { MessageSquare, Sparkles, Copy, Send, Loader2, Settings, Calendar, User, Search, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
@@ -22,6 +23,7 @@ export default function AdminMessages() {
   
   const [loading, setLoading] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
   const [formData, setFormData] = useState<GenerateWhatsappMessageInput>({
     messageType: 'confirmation',
     salonName: 'Meu Estabelecimento', // Nome padrão inicial
@@ -83,6 +85,8 @@ export default function AdminMessages() {
       appointmentDateTime: formattedDate,
     });
 
+    setClientPhone(apt.clientPhone || "");
+
     toast({
       title: "Dados importados!",
       description: `Agendamento de ${apt.clientName} selecionado.`,
@@ -113,7 +117,15 @@ export default function AdminMessages() {
 
   const openWhatsapp = () => {
     const encodedMessage = encodeURIComponent(generatedMessage);
-    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+    // Remove caracteres não numéricos do telefone
+    const cleanPhone = clientPhone.replace(/\D/g, '');
+    
+    // Constrói a URL do WhatsApp. Se tiver telefone, envia direto para ele.
+    const url = cleanPhone 
+      ? `https://wa.me/55${cleanPhone}?text=${encodedMessage}` 
+      : `https://wa.me/?text=${encodedMessage}`;
+      
+    window.open(url, '_blank');
   };
 
   return (
@@ -200,22 +212,32 @@ export default function AdminMessages() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Tom de Voz</Label>
-                  <Select 
-                    onValueChange={(v: any) => setFormData({...formData, tone: v})}
-                    value={formData.tone}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="friendly">Amigável</SelectItem>
-                      <SelectItem value="professional">Profissional</SelectItem>
-                      <SelectItem value="formal">Formal</SelectItem>
-                      <SelectItem value="playful">Divertido</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Telefone do Cliente</Label>
+                  <Input 
+                    placeholder="(11) 99999-9999" 
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    className="h-11"
+                  />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tom de Voz</Label>
+                <Select 
+                  onValueChange={(v: any) => setFormData({...formData, tone: v})}
+                  value={formData.tone}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="friendly">Amigável</SelectItem>
+                    <SelectItem value="professional">Profissional</SelectItem>
+                    <SelectItem value="formal">Formal</SelectItem>
+                    <SelectItem value="playful">Divertido</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {formData.messageType !== 'offer' && (

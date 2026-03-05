@@ -134,7 +134,6 @@ export default function AdminAgenda() {
 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
 
-  // Filtra agendamentos do dia selecionado
   const appointments = useMemo(() => {
     if (!allAppointments || !date) return [];
     return allAppointments
@@ -198,7 +197,7 @@ export default function AdminAgenda() {
   const handleOpenEditDialog = (apt: any) => {
     setEditingAppointmentId(apt.id);
     setClientName(apt.clientName);
-    setClientPhone(apt.clientPhone || "");
+    setClientPhone(apt.clientPhone ? maskPhone(apt.clientPhone) : "");
     setSelectedServiceIds(apt.serviceIds || [apt.serviceId].filter(Boolean));
     setSelectedEmployeeId(apt.employeeId);
     setSelectedStatus(apt.status || "confirmado");
@@ -261,9 +260,10 @@ export default function AdminAgenda() {
 
     setIsSubmitting(true);
     
+    const cleanClientPhone = clientPhone.replace(/\D/g, '');
     const data = {
       clientName,
-      clientPhone,
+      clientPhone: cleanClientPhone,
       serviceIds: selectedServiceIds,
       employeeId: selectedEmployeeId,
       startTime: startTime.toISOString(),
@@ -278,17 +278,15 @@ export default function AdminAgenda() {
         const docRef = doc(db, "empresas", user.uid, "agendamentos", editingAppointmentId);
         updateDocumentNonBlocking(docRef, data);
 
-        // Se marcou como concluído, credita pontos de fidelidade
         if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled) {
-          const cleanPhone = clientPhone.replace(/\D/g, '');
-          if (cleanPhone) {
-            const loyaltyDocRef = doc(db, "empresas", user.uid, "fidelidade", cleanPhone);
+          if (cleanClientPhone) {
+            const loyaltyDocRef = doc(db, "empresas", user.uid, "fidelidade", cleanClientPhone);
             const loyaltySnap = await getDoc(loyaltyDocRef);
             const currentPoints = loyaltySnap.exists() ? (loyaltySnap.data().points || 0) : 0;
             const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
             
             setDocumentNonBlocking(loyaltyDocRef, {
-              phone: cleanPhone,
+              phone: cleanClientPhone,
               clientName: clientName,
               points: currentPoints + pointsToAdd,
               updatedAt: new Date().toISOString()

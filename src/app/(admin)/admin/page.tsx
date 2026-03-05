@@ -76,13 +76,11 @@ export default function AdminDashboard() {
 
   const isInitialLoading = isUserLoading || loadingApts || loadingServices || loadingColabs;
 
-  // Mostra apenas os próximos agendamentos (não concluídos e não cancelados)
   const appointments = allAppointments
     ?.filter(apt => !!apt.startTime && apt.status !== 'concluido' && apt.status !== 'cancelado')
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
     .slice(0, 10);
 
-  // Cálculos básicos baseados nos dados reais (agendamentos concluídos ou pendentes)
   const totalFaturamento = allAppointments?.reduce((acc, apt) => {
     if (apt.status === 'cancelado') return acc;
     const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
@@ -285,4 +283,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

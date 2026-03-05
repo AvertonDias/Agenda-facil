@@ -90,7 +90,6 @@ export default function AdminSettings() {
   const [promotions, setPromotions] = useState<string[]>([]);
   const [automaticPromotions, setAutomaticPromotions] = useState<any[]>([]);
 
-  // Loyalty states
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [loyaltyPointsPerVisit, setLoyaltyPointsPerVisit] = useState("1");
   const [loyaltyGoal, setLoyaltyGoal] = useState("10");
@@ -141,7 +140,6 @@ export default function AdminSettings() {
       setPromotions(Array.isArray(companyData.promotions) ? companyData.promotions : []);
       setAutomaticPromotions(companyData.automaticPromotions || []);
 
-      // Loyalty data
       setLoyaltyEnabled(companyData.loyaltyEnabled ?? false);
       setLoyaltyPointsPerVisit(String(companyData.loyaltyPointsPerVisit ?? "1"));
       setLoyaltyGoal(String(companyData.loyaltyGoal ?? "10"));
@@ -188,7 +186,7 @@ export default function AdminSettings() {
   const updateDay = (day: string, field: string, value: any) => {
     setWorkingHours(prev => ({
       ...prev,
-      [day]: { ...prev[day], [field]: value }
+      [day]: { ...prev[day], [field]: value || "" }
     }));
   };
 
@@ -625,7 +623,7 @@ export default function AdminSettings() {
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Desconto (%)</Label>
                         <div className="flex items-center gap-4">
-                          <Input type="number" value={promo.discountPercentage} onChange={(e) => updatePromotion(promo.id, "discountPercentage", parseInt(e.target.value))} className="h-12 border-2 rounded-xl font-bold w-24" />
+                          <Input type="number" value={promo.discountPercentage} onChange={(e) => updatePromotion(promo.id, "discountPercentage", parseInt(e.target.value) || 0)} className="h-12 border-2 rounded-xl font-bold w-24" />
                           <span className="text-xl font-black text-primary">% OFF</span>
                         </div>
                       </div>

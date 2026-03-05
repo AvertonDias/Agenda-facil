@@ -32,7 +32,7 @@ function Calendar({
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
+        table: "w-full border-collapse table-fixed space-y-1",
         head_row: "flex w-full",
         head_cell:
           "text-muted-foreground rounded-md flex-1 font-black text-[0.7rem] uppercase py-2 text-center",

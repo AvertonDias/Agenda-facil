@@ -91,7 +91,7 @@ export default function AdminAgenda() {
   const { data: collaborators } = useCollection(collaboratorsQuery);
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
 
-  // Filtragem manual na memória (Evita erros de permissão por falta de índices compostos)
+  // Filtragem manual na memória para evitar erros de permissão por falta de índices compostos
   const appointments = allAppointments?.filter(apt => {
     if (!apt.startTime || !date) return false;
     const aptDate = new Date(apt.startTime);
@@ -113,7 +113,6 @@ export default function AdminAgenda() {
       setSelectedTime(format(start, "HH:mm"));
     }
     
-    // Pequeno atraso estratégico para o menu fechar antes do modal abrir, evitando conflito de foco
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
@@ -212,7 +211,6 @@ export default function AdminAgenda() {
   const isSlotBusy = (time: string) => {
     if (!allAppointments || !selectedEmployee) return false;
     
-    // Criar timestamp para o slot atual
     const [h, m] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
@@ -223,7 +221,6 @@ export default function AdminAgenda() {
       const aptStart = new Date(apt.startTime);
       const aptEnd = new Date(apt.endTime);
       
-      // Verifica sobreposição de horários
       return slotStart >= aptStart && slotStart < aptEnd;
     });
   };
@@ -404,7 +401,7 @@ export default function AdminAgenda() {
               onClick={() => setDate(new Date())}
               className="h-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
             >
-              Ir para Hoje
+              Hoje
             </Button>
           </CardHeader>
           <CardContent className="p-0 flex justify-center bg-white">
@@ -456,7 +453,7 @@ export default function AdminAgenda() {
             {isInitialLoading ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse font-black uppercase">Sincronizando com a Nuvem...</p>
+                <p className="text-sm text-muted-foreground animate-pulse font-black uppercase">Sincronizando...</p>
               </div>
             ) : (
               <div className="divide-y-2 divide-border/50">
@@ -488,7 +485,7 @@ export default function AdminAgenda() {
                                 <h4 className="text-xl font-black leading-none tracking-tight text-foreground">{apt.clientName}</h4>
                                 <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5 font-bold">
                                   <Phone className="w-3.5 h-3.5 text-primary" />
-                                  {apt.clientPhone || "Sem telefone cadastrado"}
+                                  {apt.clientPhone || "Sem telefone"}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
@@ -510,7 +507,7 @@ export default function AdminAgenda() {
                                         handleOpenEditDialog(apt);
                                       }}
                                     >
-                                      <Edit2 className="w-4 h-4 text-primary" /> Editar Horário
+                                      <Edit2 className="w-4 h-4 text-primary" /> Editar
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                       className="gap-3 py-2.5 text-destructive cursor-pointer"
@@ -550,14 +547,14 @@ export default function AdminAgenda() {
                     </div>
                     <h3 className="text-2xl font-black tracking-tight">Agenda Livre</h3>
                     <p className="text-muted-foreground max-w-[320px] mt-2 text-sm font-bold uppercase tracking-widest">
-                      Nenhum compromisso marcado para este dia.
+                      Nenhum compromisso para este dia.
                     </p>
                     <Button 
                       variant="outline" 
                       className="mt-10 gap-3 border-2 font-black px-10 h-12 uppercase tracking-widest text-xs shadow-md hover:shadow-lg transition-all"
                       onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     >
-                      <Plus className="w-4 h-4" /> Criar Primeiro Agendamento
+                      <Plus className="w-4 h-4" /> Primeiro Agendamento
                     </Button>
                   </div>
                 )}

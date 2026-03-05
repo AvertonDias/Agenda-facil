@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,7 +86,8 @@ const statusConfig = {
 };
 
 export default function AdminAgenda() {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
@@ -100,11 +101,17 @@ export default function AdminAgenda() {
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("confirmado");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showConfirmMessageAlert, setShowConfirmMessageAlert] = useState(false);
   const [lastConfirmedAptId, setLastConfirmedAptId] = useState<string | null>(null);
+
+  // Safe initial hydration
+  useEffect(() => {
+    const now = new Date();
+    setDate(now);
+    setSelectedDate(now);
+  }, []);
 
   const companyRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -142,10 +149,11 @@ export default function AdminAgenda() {
   }, [allAppointments, date]);
 
   const timeSlots = useMemo(() => {
+    if (!selectedDate) return [];
     const slots = [];
-    let current = new Date();
+    let current = new Date(selectedDate);
     current.setHours(8, 0, 0, 0);
-    const end = new Date();
+    const end = new Date(selectedDate);
     end.setHours(21, 0, 0, 0);
 
     while (current <= end) {
@@ -153,7 +161,7 @@ export default function AdminAgenda() {
       current = addMinutes(current, slotInterval);
     }
     return slots;
-  }, [slotInterval]);
+  }, [slotInterval, selectedDate]);
 
   const totalDuration = useMemo(() => {
     return selectedServiceIds.reduce((acc, id) => {
@@ -163,7 +171,7 @@ export default function AdminAgenda() {
   }, [selectedServiceIds, services]);
 
   const isSlotBusy = (time: string) => {
-    if (!allAppointments || !selectedEmployee) return false;
+    if (!allAppointments || !selectedEmployee || !selectedDate) return false;
     const [h, m] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
@@ -205,7 +213,6 @@ export default function AdminAgenda() {
       setShowConfirmMessageAlert(true);
     }
 
-    // Loyalty Logic: Give points if completed
     if (newStatus === 'concluido' && companyData?.loyaltyEnabled) {
       const apt = allAppointments?.find(a => a.id === appointmentId);
       const cleanPhone = apt?.clientPhone?.replace(/\D/g, "");
@@ -236,7 +243,7 @@ export default function AdminAgenda() {
   };
 
   const handleSaveAppointment = () => {
-    if (!user || !clientName || selectedServiceIds.length === 0 || !selectedEmployee || !selectedTime) {
+    if (!user || !clientName || selectedServiceIds.length === 0 || !selectedEmployee || !selectedTime || !selectedDate) {
       toast({ title: "Campos obrigatórios", description: "Preencha todos os campos e selecione ao menos um serviço.", variant: "destructive" });
       return;
     }
@@ -276,7 +283,6 @@ export default function AdminAgenda() {
         setShowConfirmMessageAlert(true);
       }
 
-      // Logic for points if completed in edit
       if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled) {
         handleUpdateStatus(editingAppointmentId, 'concluido');
       }
@@ -329,7 +335,7 @@ export default function AdminAgenda() {
     );
   };
 
-  const isInitialLoading = isUserLoading || (loadingApts && !allAppointments);
+  const isInitialLoading = isUserLoading || (loadingApts && !allAppointments) || !date;
 
   return (
     <div className="flex flex-col space-y-8 max-w-2xl mx-auto w-full px-4 sm:px-0">
@@ -528,7 +534,7 @@ export default function AdminAgenda() {
           <Button variant="ghost" size="sm" onClick={() => setDate(new Date())} className="h-8 text-[10px] font-black uppercase">Hoje</Button>
         </CardHeader>
         <CardContent className="p-2 flex justify-center">
-          <Calendar mode="single" selected={date} onSelect={setDate} locale={ptBR} className="w-full" />
+          {date && <Calendar mode="single" selected={date} onSelect={setDate} locale={ptBR} className="w-full" />}
         </CardContent>
       </Card>
 

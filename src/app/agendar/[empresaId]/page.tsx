@@ -43,12 +43,17 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const [step, setStep] = useState(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loyaltyPoints, setLoyaltyPoints] = useState<number | null>(null);
+
+  // Safe initial hydration
+  useEffect(() => {
+    setSelectedDate(new Date());
+  }, []);
 
   const empresaRef = useMemoFirebase(() => doc(db, "empresas", empresaId), [db, empresaId]);
   const servicesQuery = useMemoFirebase(() => collection(db, "empresas", empresaId, "servicos"), [db, empresaId]);
@@ -116,7 +121,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   }, [selectedDate, companyData, slotInterval]);
 
   const isSlotBusy = (time: string) => {
-    if (!allAppointments || !selectedEmployeeId) return false;
+    if (!allAppointments || !selectedEmployeeId || !selectedDate) return false;
     const [h, m] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
@@ -132,7 +137,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   };
 
   const handleConfirm = async () => {
-    if (!clientName || !clientPhone || !selectedTime || !selectedEmployeeId) {
+    if (!clientName || !clientPhone || !selectedTime || !selectedEmployeeId || !selectedDate) {
       toast({ title: "Erro", description: "Preencha todos os dados.", variant: "destructive" });
       return;
     }
@@ -161,7 +166,6 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     const aptsRef = collection(db, "empresas", empresaId, "agendamentos");
     addDocumentNonBlocking(aptsRef, appointmentData)
       .then(async () => {
-        // Fetch loyalty after success
         if (companyData?.loyaltyEnabled) {
           const cleanPhone = clientPhone.replace(/\D/g, "");
           const loyaltyRef = doc(db, "empresas", empresaId, "fidelidade", cleanPhone);
@@ -181,7 +185,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   };
 
   const handleNotifyWhatsapp = () => {
-    if (!companyData || !selectedTime) return;
+    if (!companyData || !selectedTime || !selectedDate) return;
     const servicesText = selectedServices.map(s => s.name).join(" + ");
     const message = `Olá! Acabei de agendar pelo site:\n\n👤 *Cliente:* ${clientName}\n✂️ *Serviço:* ${servicesText}\n📅 *Data:* ${format(selectedDate, "dd/MM")}\n⏰ *Hora:* ${selectedTime}\n💰 *Valor:* R$ ${totalPrice.toFixed(2)}\n\nAté logo!`;
     const encoded = encodeURIComponent(message);
@@ -189,7 +193,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${encoded}`, "_blank");
   };
 
-  if (loadingCompany) {
+  if (loadingCompany || !selectedDate) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -255,7 +259,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
               <p className="font-bold flex items-center gap-2"><User className="w-4 h-4 text-primary" /> {currentEmployee?.name}</p>
               <p className="font-black text-primary flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
-                {format(selectedDate, "PPP", { locale: ptBR })} às {selectedTime}
+                {selectedDate && format(selectedDate, "PPP", { locale: ptBR })} às {selectedTime}
               </p>
               <div className="pt-2 border-t flex justify-between">
                 <span className="text-xs font-bold uppercase text-muted-foreground">Total</span>

@@ -1,48 +1,40 @@
-# Agenda-facil
+# AgendaFácil Pro
 
 Plataforma de gestão inteligente para salões de beleza, barbearias e profissionais autônomos.
 
-## Sobre o Projeto
+## ⚠️ ALERTA DE SEGURANÇA (API Key)
 
-O **AgendaFácil Pro** é uma solução completa para automatizar agendamentos, gerenciar equipes e fidelizar clientes através de tecnologia moderna e inteligência artificial.
+Se você recebeu um e-mail do Google sobre "Publicly accessible Google API key", não entre em pânico. Em aplicativos Firebase Web, a chave de API é **pública por design**. No entanto, você deve **restringi-la** para evitar uso indevido.
 
-### Recursos Principais:
+### Como resolver:
+1. Vá para [APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials) no Google Cloud Console.
+2. Clique na chave de API mencionada no alerta.
+3. Sob **"Set an application restriction"**, escolha **"HTTP referrers (web sites)"**.
+4. Adicione os domínios permitidos:
+   - `localhost:*` (para desenvolvimento)
+   - `seu-dominio.com/*` (seu site oficial)
+5. Clique em **Save**. Isso tornará sua chave segura mesmo estando no GitHub.
+
+## Recursos Principais:
 - **Agendamento Público**: Página personalizada para clientes agendarem horários sozinhos.
 - **Agenda Administrativa**: Controle total dos compromissos e status.
 - **Programa de Fidelidade**: Cartão fidelidade digital automático por telefone.
-- **Mensagens com IA**: Assistente Genkit para criar mensagens de confirmação e lembretes para WhatsApp.
-- **Promoções Automáticas**: Sistema de descontos inteligentes para dias específicos ou combos.
-
+- **Assistente de Mensagens AI**: Gere textos para WhatsApp com IA Genkit.
+- **QR Code de Agendamento**: Gere um código para seu balcão direto no painel.
 
 ## Como subir para o GitHub
 
-Se você já rodou o comando de `pull` e o terminal informou que está tudo atualizado, agora é só enviar os arquivos.
-
-### 1. Envie seus arquivos para o GitHub:
+### 1. Envie seus arquivos:
 ```bash
-git push -u origin main
+git add .
+git commit -m "feat: melhorias no sistema e segurança"
+git push origin main
 ```
-
----
 
 ### Dicas Úteis:
-
-**"Waiting for your editor to close the file..."**
-Se o terminal travar com essa mensagem em algum momento:
-1. Olhe as abas de arquivos abertas no topo deste editor.
-2. Procure por uma aba chamada `MERGE_MSG` ou `COMMIT_EDITMSG`.
-3. **Feche essa aba** (clique no 'x'). O terminal destravará na hora.
-
-### Comandos de Emergência (Caso precise recomeçar):
-```bash
-git init
-git add .
-git commit -m "primeiro commit"
-git branch -M main
-git remote add origin https://github.com/AvertonDias/Agenda-facil.git
-git pull origin main --no-rebase --allow-unrelated-histories
-git push -u origin main
-```
+- **ERRO DE PUSH?** Se o GitHub recusar o push, rode:
+  `git pull origin main --no-rebase --allow-unrelated-histories`
+- **TELA TRAVADA NO TERMINAL?** Se aparecer uma mensagem sobre "Waiting for editor", feche a aba `MERGE_MSG` ou `COMMIT_EDITMSG` aqui no editor do Firebase Studio.
 
 ## Tecnologias Utilizadas
 - **Next.js 15** (App Router)

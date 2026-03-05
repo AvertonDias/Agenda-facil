@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Copy,
   QrCode,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, useUser } from "@/firebase";
@@ -45,6 +46,7 @@ import { QRCodeSVG } from "qrcode.react";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
   { icon: Calendar, label: "Agenda", href: "/admin/agenda" },
+  { icon: History, label: "Histórico", href: "/admin/historico" },
   { icon: Scissors, label: "Serviços", href: "/admin/servicos" },
   { icon: Users, label: "Equipe", href: "/admin/equipe" },
   { icon: MessageSquare, label: "Mensagens AI", href: "/admin/mensagens" },

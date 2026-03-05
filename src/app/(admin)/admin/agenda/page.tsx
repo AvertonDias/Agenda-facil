@@ -32,9 +32,10 @@ import {
   useMemoFirebase, 
   addDocumentNonBlocking, 
   updateDocumentNonBlocking, 
-  deleteDocumentNonBlocking
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking
 } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, getDoc } from "firebase/firestore";
 import { format, isSameDay, addMinutes, isBefore, parseISO } from "date-fns";
 import { cn, maskPhone } from "@/lib/utils";
 import {
@@ -133,6 +134,7 @@ export default function AdminAgenda() {
 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
 
+  // Filtra agendamentos do dia selecionado que NÃO estão concluídos/cancelados (opcional, ou mostra todos no dia)
   const appointments = useMemo(() => {
     if (!allAppointments || !date) return [];
     return allAppointments
@@ -186,7 +188,7 @@ export default function AdminAgenda() {
     const slotEnd = addMinutes(slotStart, totalDuration || 30);
 
     return allAppointments.some(apt => {
-      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado') return false;
+      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado' || apt.status === 'concluido') return false;
       const aptStart = parseISO(apt.startTime);
       const aptEnd = parseISO(apt.endTime);
       return (slotStart < aptEnd && slotEnd > aptStart);
@@ -247,11 +249,33 @@ export default function AdminAgenda() {
       if (editingAppointmentId) {
         const docRef = doc(db, "empresas", user.uid, "agendamentos", editingAppointmentId);
         updateDocumentNonBlocking(docRef, data);
+
+        // Se marcou como concluído, credita pontos de fidelidade
+        if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled) {
+          const cleanPhone = clientPhone.replace(/\D/g, '');
+          if (cleanPhone) {
+            const loyaltyDocRef = doc(db, "empresas", user.uid, "fidelidade", cleanPhone);
+            const loyaltySnap = await getDoc(loyaltyDocRef);
+            const currentPoints = loyaltySnap.exists() ? (loyaltySnap.data().points || 0) : 0;
+            const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
+            
+            setDocumentNonBlocking(loyaltyDocRef, {
+              phone: cleanPhone,
+              clientName: clientName,
+              points: currentPoints + pointsToAdd,
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+          }
+        }
       } else {
         const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
         addDocumentNonBlocking(appointmentsRef, { ...data, createdAt: new Date().toISOString() });
       }
-      toast({ title: editingAppointmentId ? "Agendamento atualizado!" : "Agendamento realizado!" });
+      
+      toast({ 
+        title: editingAppointmentId ? "Agendamento atualizado!" : "Agendamento realizado!",
+        description: selectedStatus === 'concluido' ? "O atendimento foi finalizado e os pontos de fidelidade foram creditados." : undefined
+      });
       setIsDialogOpen(false);
       resetForm();
     } catch (e) {
@@ -283,7 +307,6 @@ export default function AdminAgenda() {
     setSelectedServiceIds(prev => 
       prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
     );
-    // Reset employee if current one no longer matches combination
     if (selectedEmployeeId) {
       const stillFits = collaborators?.find(c => c.id === selectedEmployeeId)?.offeredServiceIds?.includes(id);
       if (!stillFits) setSelectedEmployeeId("");
@@ -432,12 +455,6 @@ export default function AdminAgenda() {
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedServiceIds.length > 0 && filteredCollaborators.length === 0 && (
-                  <div className="flex items-start gap-1.5 mt-1 text-[10px] text-destructive font-black uppercase leading-tight">
-                    <AlertCircle className="w-3 h-3 shrink-0" />
-                    <span>Nenhum profissional realiza todos esses serviços juntos.</span>
-                  </div>
-                )}
               </div>
               <div className="space-y-2">
                 <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>

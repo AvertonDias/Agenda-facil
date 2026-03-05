@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,13 +61,13 @@ export default function AdminDashboard() {
 
   const isInitialLoading = isUserLoading || loadingApts || loadingServices || loadingColabs;
 
-  // Mostra apenas os mais recentes baseados em startTime
+  // Mostra apenas os próximos agendamentos (não concluídos e não cancelados)
   const appointments = allAppointments
-    ?.filter(apt => !!apt.startTime)
+    ?.filter(apt => !!apt.startTime && apt.status !== 'concluido' && apt.status !== 'cancelado')
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
     .slice(0, 10);
 
-  // Cálculos básicos baseados nos dados reais
+  // Cálculos básicos baseados nos dados reais (agendamentos concluídos ou pendentes)
   const totalFaturamento = allAppointments?.reduce((acc, apt) => {
     if (apt.status === 'cancelado') return acc;
     const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
@@ -77,14 +78,14 @@ export default function AdminDashboard() {
 
   const stats = [
     { 
-      label: "Agendamentos", 
-      value: allAppointments?.filter(a => a.status !== 'cancelado').length.toString() || "0", 
+      label: "Agendamentos Ativos", 
+      value: allAppointments?.filter(a => a.status === 'pendente' || a.status === 'confirmado').length.toString() || "0", 
       icon: CalendarIcon, 
       color: "text-blue-500", 
       bg: "bg-blue-50" 
     },
     { 
-      label: "Faturamento", 
+      label: "Faturamento Total", 
       value: `R$ ${totalFaturamento.toFixed(2)}`, 
       icon: DollarSign, 
       color: "text-green-600", 
@@ -193,7 +194,7 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-12 flex flex-col items-center justify-center space-y-3">
                   <CalendarIcon className="w-12 h-12 text-muted-foreground/20" />
-                  <p className="text-muted-foreground">Nenhum agendamento encontrado.</p>
+                  <p className="text-muted-foreground">Nenhum compromisso pendente.</p>
                   <Link href="/admin/agenda">
                     <Button variant="outline" size="sm">Ir para Agenda</Button>
                   </Link>

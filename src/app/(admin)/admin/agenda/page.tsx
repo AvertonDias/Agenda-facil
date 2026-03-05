@@ -99,6 +99,7 @@ export default function AdminAgenda() {
 
   // Estado para confirmação de mensagem
   const [showConfirmMessageAlert, setShowConfirmMessageAlert] = useState(false);
+  const [lastConfirmedAptId, setLastConfirmedAptId] = useState<string | null>(null);
 
   // Queries
   const companyRef = useMemoFirebase(() => {
@@ -200,6 +201,7 @@ export default function AdminAgenda() {
     toast({ title: "Status atualizado!" });
 
     if (newStatus === 'confirmado') {
+      setLastConfirmedAptId(appointmentId);
       setShowConfirmMessageAlert(true);
     }
   };
@@ -241,6 +243,7 @@ export default function AdminAgenda() {
       setIsDialogOpen(false);
       
       if (selectedStatus === 'confirmado') {
+        setLastConfirmedAptId(editingAppointmentId);
         setShowConfirmMessageAlert(true);
       }
       
@@ -249,11 +252,12 @@ export default function AdminAgenda() {
     } else {
       const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
       addDocumentNonBlocking(appointmentsRef, { ...appointmentData, createdAt: new Date().toISOString() })
-        .then(() => {
+        .then((docRef) => {
           toast({ title: "Agendamento realizado!" });
           setIsDialogOpen(false);
           
-          if (selectedStatus === 'confirmado') {
+          if (selectedStatus === 'confirmado' && docRef?.id) {
+            setLastConfirmedAptId(docRef.id);
             setShowConfirmMessageAlert(true);
           }
           
@@ -463,7 +467,7 @@ export default function AdminAgenda() {
             <AlertDialogCancel className="rounded-xl font-bold">Agora não</AlertDialogCancel>
             <AlertDialogAction 
               className="rounded-xl font-black"
-              onClick={() => router.push('/admin/mensagens')}
+              onClick={() => router.push(`/admin/mensagens?appointmentId=${lastConfirmedAptId}`)}
             >
               Sim, enviar agora
             </AlertDialogAction>

@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { generateWhatsappMessage, type GenerateWhatsappMessageInput } from "@/ai/flows/generate-whatsapp-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +17,12 @@ import { collection, doc } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-export default function AdminMessages() {
+function AdminMessagesContent() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const appointmentIdParam = searchParams.get('appointmentId');
   
   const [loading, setLoading] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState("");
@@ -58,6 +61,13 @@ export default function AdminMessages() {
       setFormData(prev => ({ ...prev, salonName: companyData.name }));
     }
   }, [companyData?.name]);
+
+  // Efeito para auto-carregar o agendamento se vier via URL
+  useEffect(() => {
+    if (!loadingApts && appointments && services && appointmentIdParam) {
+      handleSelectAppointment(appointmentIdParam);
+    }
+  }, [loadingApts, appointments, services, appointmentIdParam]);
 
   const sortedAppointments = useMemo(() => {
     if (!appointments) return [];
@@ -118,12 +128,10 @@ export default function AdminMessages() {
     const encodedMessage = encodeURIComponent(generatedMessage);
     let cleanPhone = clientPhone.replace(/\D/g, '');
     
-    // Garante o código do país (55 para Brasil) se não estiver presente
     if (cleanPhone.length > 0 && cleanPhone.length <= 11) {
       cleanPhone = `55${cleanPhone}`;
     }
     
-    // O endpoint api.whatsapp.com é mais confiável para lidar com caracteres especiais e emojis no PC
     const baseUrl = "https://api.whatsapp.com/send";
     const url = cleanPhone 
       ? `${baseUrl}?phone=${cleanPhone}&text=${encodedMessage}` 
@@ -153,7 +161,7 @@ export default function AdminMessages() {
             <CardContent className="pt-6">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Escolher Agendamento Recente</Label>
-                <Select onValueChange={handleSelectAppointment}>
+                <Select onValueChange={handleSelectAppointment} value={appointmentIdParam || undefined}>
                   <SelectTrigger className="h-12 border-2 rounded-xl">
                     <SelectValue placeholder={loadingApts ? "Carregando agenda..." : "Selecione um cliente da lista"} />
                   </SelectTrigger>
@@ -318,5 +326,13 @@ export default function AdminMessages() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function AdminMessages() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>}>
+      <AdminMessagesContent />
+    </Suspense>
   );
 }

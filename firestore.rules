@@ -3,17 +3,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regra para Perfis de Usuários
+    // Regra para perfis
     match /perfis_usuarios/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Regra para o DOCUMENTO da Empresa e todas as suas SUBCOLEÇÕES (agendamentos, serviços, colaboradores)
-    // O uso de {allPaths=**} garante que o proprietário tenha acesso a tudo abaixo de seu ID.
+    // Regra para Empresas e Subcoleções
     match /empresas/{empresaId} {
+      // Permite ler o documento da empresa
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
-      
-      match /{allPaths=**} {
+
+      // Permite LISTAR e LER agendamentos de forma explícita
+      match /agendamentos/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+
+      // Permite qualquer outra subcoleção de forma recursiva
+      match /{allSubcollections=**} {
         allow read, write: if request.auth != null && request.auth.uid == empresaId;
       }
     }

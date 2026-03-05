@@ -24,7 +24,7 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4 w-full",
         caption: "flex justify-center pt-1 relative items-center mb-4",
-        caption_label: "text-sm font-bold uppercase tracking-widest",
+        caption_label: "text-sm font-black uppercase tracking-widest",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
@@ -35,19 +35,19 @@ function Calendar({
         table: "w-full border-collapse space-y-1",
         head_row: "flex w-full",
         head_cell:
-          "text-muted-foreground rounded-md w-full font-black text-[0.7rem] uppercase py-2",
+          "text-muted-foreground rounded-md flex-1 font-black text-[0.7rem] uppercase py-2 text-center",
         row: "flex w-full mt-2",
         cell: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent/50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
-          "w-full h-10 sm:h-12"
+          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 flex-1",
+          "[&:has([aria-selected])]:bg-accent/50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-10 w-10 sm:h-12 sm:w-12 p-0 font-medium aria-selected:opacity-100 hover:bg-primary/10 rounded-lg transition-all mx-auto"
+          "h-10 w-full p-0 font-medium aria-selected:opacity-100 hover:bg-primary/10 rounded-lg transition-all"
         ),
         day_range_end: "day-range-end",
         day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground font-black shadow-md scale-105",
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground font-black shadow-md",
         day_today: "bg-accent/20 text-accent font-black border border-accent/20",
         day_outside:
           "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground",

@@ -112,7 +112,8 @@ export default function AdminAgenda() {
       setSelectedDate(new Date(year, month - 1, day));
     }
     
-    setTimeout(() => setIsDialogOpen(true), 200);
+    // Pequeno atraso para o menu fechar antes do modal abrir, evitando UI freeze
+    setTimeout(() => setIsDialogOpen(true), 150);
   };
 
   const handleSaveAppointment = () => {
@@ -213,8 +214,8 @@ export default function AdminAgenda() {
     <div className="h-full flex flex-col space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <CalendarDays className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-primary">
+            <CalendarDays className="w-8 h-8" />
             Agenda
           </h1>
           <p className="text-muted-foreground">Gerencie seus horários e compromissos.</p>
@@ -316,17 +317,14 @@ export default function AdminAgenda() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-end mb-2">
-                <Label className="flex items-center gap-1.5">
+                <Label className="flex items-center gap-1.5 text-xs font-black uppercase tracking-tight">
                   Horário Disponível 
                   {selectedServiceData && (
                     <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
-                      {selectedServiceData.name} - {serviceDuration}min
+                      {serviceDuration}min
                     </span>
                   )}
                 </Label>
-                <span className="text-[10px] text-muted-foreground italic">
-                  * {selectedDate ? format(selectedDate, "dd/MM") : ""}
-                </span>
               </div>
               
               {!selectedService || !selectedEmployee ? (
@@ -372,7 +370,7 @@ export default function AdminAgenda() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col gap-6 flex-1">
+      <div className="flex flex-col gap-6 flex-1 max-w-2xl mx-auto w-full">
         <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl">
           <CardHeader className="pb-4 border-b bg-secondary/5 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
@@ -394,7 +392,7 @@ export default function AdminAgenda() {
               selected={date}
               onSelect={setDate}
               locale={ptBR}
-              className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-full"
+              className="w-full"
             />
           </CardContent>
         </Card>
@@ -427,9 +425,9 @@ export default function AdminAgenda() {
           <CardHeader className="border-b bg-card/50 p-6">
             <div>
               <CardTitle className="text-xl font-black tracking-tight">
-                Linha do Tempo
+                Compromissos
               </CardTitle>
-              <p className="text-xs text-muted-foreground font-medium">Lista cronológica de compromissos</p>
+              <p className="text-xs text-muted-foreground font-medium">Lista cronológica para o dia selecionado</p>
             </div>
           </CardHeader>
           
@@ -472,15 +470,9 @@ export default function AdminAgenda() {
                                 </p>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  "text-[10px] px-2.5 py-1 rounded-full uppercase font-black tracking-tighter",
-                                  isConfirmed ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                                )}>
-                                  {apt.status || 'pendente'}
-                                </span>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary border transition-colors">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary border transition-colors shadow-sm">
                                       <MoreVertical className="w-4 h-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -532,7 +524,7 @@ export default function AdminAgenda() {
                     </div>
                     <h3 className="text-xl font-black tracking-tight">Agenda Livre</h3>
                     <p className="text-muted-foreground max-w-[280px] mt-2 text-sm font-medium">
-                      Nenhum agendamento para este dia. Que tal abrir novos horários?
+                      Nenhum agendamento para este dia.
                     </p>
                     <Button 
                       variant="outline" 

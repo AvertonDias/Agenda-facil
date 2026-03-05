@@ -26,7 +26,7 @@ export default function AdminMessages() {
   const [clientPhone, setClientPhone] = useState("");
   const [formData, setFormData] = useState<GenerateWhatsappMessageInput>({
     messageType: 'confirmation',
-    salonName: 'Meu Estabelecimento', // Nome padrão inicial
+    salonName: 'Meu Estabelecimento', 
     clientName: '',
     serviceDetails: '',
     appointmentDateTime: '',
@@ -34,7 +34,6 @@ export default function AdminMessages() {
     tone: 'friendly'
   });
 
-  // Queries para buscar dados reais
   const companyRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return doc(db, "empresas", user.uid);
@@ -54,18 +53,16 @@ export default function AdminMessages() {
   const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
   const { data: services } = useCollection(servicesQuery);
 
-  // Atualiza o nome do salão quando os dados da empresa carregarem
   useEffect(() => {
     if (companyData?.name) {
       setFormData(prev => ({ ...prev, salonName: companyData.name }));
     }
   }, [companyData?.name]);
 
-  // Filtra agendamentos futuros ou recentes (ordenados por data)
   const sortedAppointments = useMemo(() => {
     if (!appointments) return [];
     return [...appointments]
-      .filter(apt => !!apt.startTime) // Garante que apenas agendamentos com data sejam processados
+      .filter(apt => !!apt.startTime) 
       .sort((a, b) => b.startTime.localeCompare(a.startTime))
       .slice(0, 20);
   }, [appointments]);
@@ -116,14 +113,21 @@ export default function AdminMessages() {
   };
 
   const openWhatsapp = () => {
+    if (!generatedMessage) return;
+
     const encodedMessage = encodeURIComponent(generatedMessage);
-    // Remove caracteres não numéricos do telefone
-    const cleanPhone = clientPhone.replace(/\D/g, '');
+    let cleanPhone = clientPhone.replace(/\D/g, '');
     
-    // Constrói a URL do WhatsApp. Se tiver telefone, envia direto para ele.
+    // Garante o código do país (55 para Brasil) se não estiver presente
+    if (cleanPhone.length > 0 && cleanPhone.length <= 11) {
+      cleanPhone = `55${cleanPhone}`;
+    }
+    
+    // O endpoint api.whatsapp.com é mais confiável para lidar com caracteres especiais e emojis no PC
+    const baseUrl = "https://api.whatsapp.com/send";
     const url = cleanPhone 
-      ? `https://wa.me/55${cleanPhone}?text=${encodedMessage}` 
-      : `https://wa.me/?text=${encodedMessage}`;
+      ? `${baseUrl}?phone=${cleanPhone}&text=${encodedMessage}` 
+      : `${baseUrl}?text=${encodedMessage}`;
       
     window.open(url, '_blank');
   };

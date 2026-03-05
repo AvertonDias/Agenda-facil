@@ -333,9 +333,9 @@ export default function AdminSettings() {
                           <Clock className="w-3 h-3" /> Expediente
                         </Label>
                         <div className="flex items-center gap-2">
-                          <Input type="time" value={workingHours[day.id]?.open} onChange={(e) => updateDay(day.id, "open", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center" />
+                          <Input type="time" value={workingHours[day.id]?.open || ""} onChange={(e) => updateDay(day.id, "open", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center" />
                           <span className="text-muted-foreground font-bold text-[10px] uppercase">até</span>
-                          <Input type="time" value={workingHours[day.id]?.close} onChange={(e) => updateDay(day.id, "close", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center" />
+                          <Input type="time" value={workingHours[day.id]?.close || ""} onChange={(e) => updateDay(day.id, "close", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center" />
                         </div>
                       </div>
 
@@ -346,9 +346,9 @@ export default function AdminSettings() {
                           <Coffee className="w-3 h-3" /> Intervalo / Almoço
                         </Label>
                         <div className="flex items-center gap-2">
-                          <Input type="time" value={workingHours[day.id]?.breakStart} onChange={(e) => updateDay(day.id, "breakStart", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center border-primary/20" />
+                          <Input type="time" value={workingHours[day.id]?.breakStart || ""} onChange={(e) => updateDay(day.id, "breakStart", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center border-primary/20" />
                           <span className="text-muted-foreground font-bold text-[10px] uppercase">até</span>
-                          <Input type="time" value={workingHours[day.id]?.breakEnd} onChange={(e) => updateDay(day.id, "breakEnd", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center border-primary/20" />
+                          <Input type="time" value={workingHours[day.id]?.breakEnd || ""} onChange={(e) => updateDay(day.id, "breakEnd", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center border-primary/20" />
                         </div>
                       </div>
                     </div>
@@ -475,7 +475,7 @@ export default function AdminSettings() {
                 {promotions.map((text, index) => (
                   <div key={index} className="flex gap-2 items-start group">
                     <Textarea 
-                      value={text} 
+                      value={text || ""} 
                       onChange={(e) => updateBanner(index, e.target.value)} 
                       placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
                       className="min-h-[100px] text-lg font-bold p-6 border-2 rounded-2xl flex-1"
@@ -518,7 +518,7 @@ export default function AdminSettings() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Descrição da Promoção</Label>
-                        <Input value={promo.description} onChange={(e) => updatePromotion(promo.id, "description", e.target.value)} placeholder="Ex: Combo Quarta Maluca" className="h-12 border-2 rounded-xl font-bold" />
+                        <Input value={promo.description || ""} onChange={(e) => updatePromotion(promo.id, "description", e.target.value)} placeholder="Ex: Combo Quarta Maluca" className="h-12 border-2 rounded-xl font-bold" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Dia da Semana</Label>
@@ -597,7 +597,7 @@ export default function AdminSettings() {
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recompensa</Label>
                       <Input 
-                        value={loyaltyReward} 
+                        value={loyaltyReward || ""} 
                         onChange={(e) => setLoyaltyReward(e.target.value)}
                         placeholder="Ex: Corte Grátis"
                         className="h-14 border-2 rounded-2xl font-bold"

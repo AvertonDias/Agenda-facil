@@ -27,7 +27,8 @@ import {
   Trophy,
   Users,
   Plane,
-  Coffee
+  Coffee,
+  Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
@@ -411,15 +412,48 @@ export default function AdminSettings() {
               <CardTitle>Agenda Inteligente</CardTitle>
               <CardDescription>Configure as regras para o seu estabelecimento.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Antecedência Mínima (Horas)</Label>
+            <CardContent className="space-y-10 p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <Label className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
+                      <Clock className="w-3 h-3" /> Antecedência Mínima (Horas)
+                    </Label>
+                    <p className="text-xs text-muted-foreground font-medium">Evite surpresas de última hora bloqueando agendamentos muito próximos do horário atual.</p>
+                  </div>
                   <Input type="number" value={minLeadTimeHours} onChange={(e) => setMinLeadTimeHours(e.target.value)} className="h-14 border-2 rounded-2xl px-6 font-bold" />
+                  <div className="p-4 bg-secondary/20 rounded-2xl border-2 border-dashed flex gap-3">
+                    <div className="bg-primary/10 p-2 rounded-xl h-fit">
+                      <Info className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase text-primary tracking-widest">Exemplo Prático</p>
+                      <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
+                        Se você definir <span className="text-foreground font-black">2 horas</span>, e agora são 10:00, o cliente só conseguirá ver horários disponíveis a partir das <span className="text-foreground font-black">12:00</span> em diante.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Intervalo entre Vagas (Minutos)</Label>
+
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <Label className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
+                      <CalendarDays className="w-3 h-3" /> Intervalo entre Vagas (Minutos)
+                    </Label>
+                    <p className="text-xs text-muted-foreground font-medium">Define de quanto em quanto tempo uma nova vaga de atendimento aparece no site.</p>
+                  </div>
                   <Input type="number" value={slotIntervalMinutes} onChange={(e) => setSlotIntervalMinutes(e.target.value)} className="h-14 border-2 rounded-2xl px-6 font-bold" />
+                  <div className="p-4 bg-secondary/20 rounded-2xl border-2 border-dashed flex gap-3">
+                    <div className="bg-primary/10 p-2 rounded-xl h-fit">
+                      <Info className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase text-primary tracking-widest">Exemplo Prático</p>
+                      <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
+                        Se você definir <span className="text-foreground font-black">30 minutos</span>, as opções mostradas serão: 08:00, 08:30, 09:00, etc. Se for <span className="text-foreground font-black">60</span>, será: 08:00, 09:00, 10:00...
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

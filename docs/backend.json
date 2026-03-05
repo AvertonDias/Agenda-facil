@@ -27,6 +27,7 @@
         "address": { "type": "string" },
         "plan": { "type": "string" },
         "workingHours": { "type": "object", "description": "Mapa de horários por dia da semana" },
+        "offDays": { "type": "array", "items": { "type": "string" }, "description": "Lista de datas (YYYY-MM-DD) marcadas como folga ou férias" },
         "promotions": { "type": "array", "items": { "type": "string" } },
         "automaticPromotions": { 
           "type": "array", 

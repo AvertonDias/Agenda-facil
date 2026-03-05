@@ -25,7 +25,8 @@ import {
   X,
   Gift,
   Trophy,
-  Users
+  Users,
+  Plane
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
@@ -41,6 +42,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
+import { Calendar } from "@/components/ui/calendar";
+import { format, parseISO, isValid } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const DAYS_OF_WEEK = [
   { id: "monday", label: "Segunda-feira" },
@@ -78,6 +82,7 @@ export default function AdminSettings() {
     sunday: { open: "08:00", close: "12:00", closed: true },
   });
 
+  const [offDays, setOffDays] = useState<Date[]>([]);
   const [promotions, setPromotions] = useState<string[]>([]);
   const [automaticPromotions, setAutomaticPromotions] = useState<any[]>([]);
 
@@ -119,6 +124,16 @@ export default function AdminSettings() {
         setWorkingHours(companyData.workingHours);
       }
       
+      if (companyData.offDays && Array.isArray(companyData.offDays)) {
+        const parsedDates = companyData.offDays
+          .map((dStr: string) => {
+            const d = parseISO(dStr);
+            return isValid(d) ? d : null;
+          })
+          .filter((d: Date | null): d is Date => d !== null);
+        setOffDays(parsedDates);
+      }
+
       setPromotions(Array.isArray(companyData.promotions) ? companyData.promotions : []);
       setAutomaticPromotions(companyData.automaticPromotions || []);
 
@@ -144,6 +159,7 @@ export default function AdminSettings() {
       minLeadTimeHours: parseInt(minLeadTimeHours) || 0,
       slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
       workingHours,
+      offDays: offDays.map(d => format(d, 'yyyy-MM-dd')),
       promotions,
       automaticPromotions,
       loyaltyEnabled,
@@ -238,6 +254,9 @@ export default function AdminSettings() {
           <TabsTrigger value="horario" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <Clock className="w-4 h-4" /> Horário
           </TabsTrigger>
+          <TabsTrigger value="folgas" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+            <Plane className="w-4 h-4" /> Folgas
+          </TabsTrigger>
           <TabsTrigger value="regras" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <CalendarDays className="w-4 h-4" /> Regras
           </TabsTrigger>
@@ -311,6 +330,52 @@ export default function AdminSettings() {
                   )}
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="folgas">
+          <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+            <CardHeader className="bg-secondary/10">
+              <CardTitle>Folgas e Férias</CardTitle>
+              <CardDescription>Selecione dias específicos para bloquear agendamentos (ex: feriados, folgas ou férias).</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                <div className="bg-white p-4 border-2 rounded-3xl shadow-sm">
+                  <Calendar
+                    mode="multiple"
+                    selected={offDays}
+                    onSelect={(dates) => setOffDays(dates || [])}
+                    locale={ptBR}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1 space-y-4">
+                  <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/20">
+                    <h3 className="text-sm font-black uppercase text-primary tracking-widest mb-2 flex items-center gap-2">
+                      <Plane className="w-4 h-4" /> Dias Selecionados
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {offDays.length > 0 ? (
+                        offDays.sort((a,b) => a.getTime() - b.getTime()).map((date, i) => (
+                          <div key={i} className="bg-primary text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                            {format(date, "dd/MM/yyyy")}
+                            <X className="w-3 h-3 cursor-pointer" onClick={() => setOffDays(offDays.filter((_, idx) => idx !== i))} />
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground font-medium">Nenhum dia bloqueado. Clique no calendário para selecionar.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-6 bg-secondary/5 rounded-3xl border-2 border-dashed">
+                    <p className="text-xs font-bold text-muted-foreground leading-relaxed">
+                      💡 Os dias selecionados ficarão desabilitados para agendamento na sua página pública. Lembre-se de clicar em "Salvar Tudo" após selecionar os dias.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

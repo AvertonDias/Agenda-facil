@@ -21,7 +21,8 @@ import {
   MessageSquare,
   Zap,
   Gift,
-  Trophy
+  Trophy,
+  Plane
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { format, addMinutes, isBefore, addHours, parseISO, isSameDay, getDay } from "date-fns";
@@ -101,8 +102,14 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
 
+  const isOffDay = useMemo(() => {
+    if (!companyData?.offDays || !selectedDate) return false;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return companyData.offDays.includes(dateStr);
+  }, [companyData?.offDays, selectedDate]);
+
   const timeSlots = useMemo(() => {
-    if (!companyData || !selectedDate) return [];
+    if (!companyData || !selectedDate || isOffDay) return [];
     const dayName = DAY_MAP[getDay(selectedDate)];
     const config = companyData.workingHours?.[dayName];
     if (!config || config.closed) return [];
@@ -118,7 +125,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       current = addMinutes(current, slotInterval);
     }
     return slots;
-  }, [selectedDate, companyData, slotInterval]);
+  }, [selectedDate, companyData, slotInterval, isOffDay]);
 
   const isSlotBusy = (time: string) => {
     if (!allAppointments || !selectedEmployeeId || !selectedDate) return false;
@@ -441,7 +448,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                     onSelect={(d) => d && setSelectedDate(d)}
                     initialFocus
                     locale={ptBR}
-                    disabled={(date) => isBefore(date, new Date()) && !isSameDay(date, new Date())}
+                    disabled={(date) => 
+                      isBefore(date, new Date()) && !isSameDay(date, new Date()) || 
+                      (companyData?.offDays?.includes(format(date, 'yyyy-MM-dd')))
+                    }
                   />
                 </PopoverContent>
               </Popover>
@@ -449,7 +459,13 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
             <div className="space-y-4">
               <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Horários Disponíveis</Label>
-              {timeSlots.length > 0 ? (
+              {isOffDay ? (
+                <div className="p-10 text-center bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl flex flex-col items-center gap-3">
+                  <Plane className="w-10 h-10 text-primary/40" />
+                  <p className="text-sm font-black text-primary uppercase tracking-widest">Folga / Férias</p>
+                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">Este dia foi marcado como folga. Por favor, escolha outra data acima.</p>
+                </div>
+              ) : timeSlots.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   {timeSlots.map((time) => {
                     const isBusy = isSlotBusy(time);

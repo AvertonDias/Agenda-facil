@@ -18,7 +18,8 @@ import {
   Trash2,
   Edit2,
   Calendar as CalendarIcon,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -151,6 +152,14 @@ export default function AdminAgenda() {
     }, 0);
   }, [selectedServiceIds, services]);
 
+  const filteredCollaborators = useMemo(() => {
+    if (!collaborators) return [];
+    return collaborators.filter(c => 
+      selectedServiceIds.length === 0 || 
+      selectedServiceIds.every(sId => c.offeredServiceIds?.includes(sId))
+    );
+  }, [collaborators, selectedServiceIds]);
+
   const isSlotBusy = (time: string) => {
     if (!allAppointments || !selectedEmployeeId || !selectedDate) return false;
     const [h, m] = time.split(':').map(Number);
@@ -246,6 +255,11 @@ export default function AdminAgenda() {
     setSelectedServiceIds(prev => 
       prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
     );
+    // Reset employee if current one no longer matches combination
+    if (selectedEmployeeId) {
+      const stillFits = collaborators?.find(c => c.id === selectedEmployeeId)?.offeredServiceIds?.includes(id);
+      if (!stillFits) setSelectedEmployeeId("");
+    }
   };
 
   const isInitialLoading = isUserLoading || (loadingApts && !allAppointments) || !date;
@@ -338,19 +352,26 @@ export default function AdminAgenda() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
-                <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+                <Select 
+                  onValueChange={setSelectedEmployeeId} 
+                  value={selectedEmployeeId}
+                  disabled={selectedServiceIds.length > 0 && filteredCollaborators.length === 0}
+                >
                   <SelectTrigger className="h-12 border-2 rounded-xl">
-                    <SelectValue placeholder="Escolha um profissional" />
+                    <SelectValue placeholder={selectedServiceIds.length > 0 && filteredCollaborators.length === 0 ? "Indisponível" : "Escolha um profissional"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {collaborators?.filter(c => 
-                      selectedServiceIds.length === 0 || 
-                      selectedServiceIds.every(sId => c.offeredServiceIds?.includes(sId))
-                    ).map(c => (
+                    {filteredCollaborators.map(c => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedServiceIds.length > 0 && filteredCollaborators.length === 0 && (
+                  <div className="flex items-start gap-1.5 mt-1 text-[10px] text-destructive font-black uppercase leading-tight">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>Nenhum profissional realiza todos esses serviços juntos.</span>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
@@ -377,10 +398,10 @@ export default function AdminAgenda() {
                     <Button
                       key={time}
                       variant={selectedTime === time ? "default" : "outline"}
-                      disabled={isBusy}
+                      disabled={isBusy || !selectedEmployeeId}
                       className={cn(
                         "h-10 text-[10px] font-black border-2 rounded-xl",
-                        isBusy && "opacity-20 bg-muted cursor-not-allowed",
+                        (isBusy || !selectedEmployeeId) && "opacity-20 bg-muted cursor-not-allowed",
                       )}
                       onClick={() => setSelectedTime(time)}
                     >

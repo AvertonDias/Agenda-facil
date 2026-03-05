@@ -238,17 +238,20 @@ export default function AdminAgenda() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1">
-        {/* Lado Esquerdo: Seletor de Data */}
-        <div className="lg:col-span-4 space-y-6">
-          <Card className="border-none shadow-sm overflow-hidden">
+      <div className="flex flex-col gap-8 flex-1">
+        {/* Seção do Calendário */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Selecione a Data</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               <Calendar
                 mode="single"
                 selected={date}
                 onSelect={setDate}
                 locale={ptBR}
-                className="w-full rounded-none p-4"
+                className="w-full flex justify-center p-4"
               />
             </CardContent>
           </Card>
@@ -268,12 +271,17 @@ export default function AdminAgenda() {
                   {appointments?.filter(a => a.status === 'confirmado').length || 0}
                 </span>
               </div>
+              <div className="pt-4 border-t">
+                 <p className="text-xs text-muted-foreground text-center">
+                   {date ? format(date, "dd 'de' MMMM", { locale: ptBR }) : ''}
+                 </p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Lado Direito: Linha do Tempo/Lista */}
-        <div className="lg:col-span-8">
+        {/* Seção dos Agendamentos (Abaixo) */}
+        <div className="w-full">
           <Card className="border-none shadow-sm h-full flex flex-col">
             <CardHeader className="border-b bg-card/50 sticky top-0 z-10">
               <div className="flex items-center justify-between">

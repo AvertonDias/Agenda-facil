@@ -12,9 +12,20 @@ service cloud.firestore {
       // Permite ler/escrever o documento da própria empresa
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
 
-      // Regras explícitas para subcoleções (agendamentos, serviços, colaboradores)
-      // O uso do curinga recursivo {allPaths=**} garante que qualquer caminho 
-      // abaixo de uma empresa seja acessível apenas pelo seu dono.
+      // Regras explícitas para subcoleções para evitar erros de 'list'
+      match /agendamentos/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+      
+      match /servicos/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+      
+      match /colaboradores/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == empresaId;
+      }
+
+      // Cobre qualquer outro caminho aninhado
       match /{allPaths=**} {
         allow read, write: if request.auth != null && request.auth.uid == empresaId;
       }

@@ -298,7 +298,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
       <main className="flex-1 p-6 max-w-xl mx-auto w-full pb-32">
         {allPromotions.length > 0 && (
-          <div className="space-y-4 mb-8">
+          <div className="space-y-4 mb-4">
             {allPromotions.map((text, i) => (
               <div key={i} className="p-6 bg-accent/10 border-2 border-accent/20 rounded-3xl relative overflow-hidden group shadow-sm">
                 <Tag className="absolute -right-4 -top-4 w-24 h-24 text-accent/10 rotate-12 group-hover:rotate-45 transition-transform" />
@@ -313,6 +313,24 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {companyData.loyaltyEnabled && (
+          <div className="mb-8 p-6 bg-primary/5 border-2 border-primary/20 rounded-3xl relative overflow-hidden group shadow-sm">
+            <Trophy className="absolute -right-4 -top-4 w-24 h-24 text-primary/10 rotate-12 group-hover:rotate-45 transition-transform" />
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-primary rounded-xl text-white shadow-md">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black uppercase text-primary tracking-widest">Programa de Fidelidade</h3>
+                <p className="text-lg font-bold leading-tight">
+                  Acumule {companyData.loyaltyGoal} pontos e ganhe: <span className="text-primary underline">{companyData.loyaltyReward}</span>!
+                </p>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Ganhe pontos a cada visita concluída</p>
+              </div>
+            </div>
           </div>
         )}
 

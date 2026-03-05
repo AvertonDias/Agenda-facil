@@ -10,7 +10,7 @@ import {
   useMemoFirebase,
 } from "@/firebase";
 import { collection } from "firebase/firestore";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Search, 
@@ -23,7 +23,9 @@ import {
   CheckCircle2,
   Phone,
   Clock,
-  Filter
+  Filter,
+  X,
+  CalendarDays
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,12 +37,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 
 export default function AdminHistory() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCollabId, setSelectedCollabId] = useState("all");
+  const [selectedServiceId, setSelectedServiceId] = useState("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -69,10 +80,13 @@ export default function AdminHistory() {
         const matchesSearch = apt.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                              apt.clientPhone?.includes(searchTerm);
         const matchesCollab = selectedCollabId === "all" || apt.employeeId === selectedCollabId;
-        return matchesSearch && matchesCollab;
+        const matchesService = selectedServiceId === "all" || (apt.serviceIds || []).includes(selectedServiceId);
+        const matchesDate = !selectedDate || (apt.startTime && isSameDay(parseISO(apt.startTime), selectedDate));
+        
+        return matchesSearch && matchesCollab && matchesService && matchesDate;
       })
       .sort((a, b) => b.startTime.localeCompare(a.startTime));
-  }, [allAppointments, searchTerm, selectedCollabId]);
+  }, [allAppointments, searchTerm, selectedCollabId, selectedServiceId, selectedDate]);
 
   const clientRanking = useMemo(() => {
     if (!allAppointments) return [];
@@ -113,7 +127,7 @@ export default function AdminHistory() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto w-full">
+    <div className="space-y-8 max-w-6xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-primary flex items-center gap-2">
@@ -124,7 +138,7 @@ export default function AdminHistory() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1 space-y-6">
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
             <CardHeader className="bg-primary/5 border-b">
@@ -166,22 +180,52 @@ export default function AdminHistory() {
           </Card>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="relative flex-1 w-full">
+        <div className="lg:col-span-3 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+            <div className="relative w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar cliente ou telefone..." 
+                placeholder="Buscar cliente..." 
                 className="pl-12 h-12 border-2 rounded-2xl font-bold bg-white"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="w-full sm:w-[200px]">
+
+            <div className="w-full">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn(
+                    "w-full h-12 border-2 rounded-2xl font-bold bg-white justify-start gap-2",
+                    !selectedDate && "text-muted-foreground"
+                  )}>
+                    <CalendarDays className="w-4 h-4 text-primary" />
+                    {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Todas as Datas"}
+                    {selectedDate && (
+                      <X 
+                        className="ml-auto w-3 h-3 hover:text-destructive" 
+                        onClick={(e) => { e.stopPropagation(); setSelectedDate(undefined); }} 
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="w-full">
               <Select value={selectedCollabId} onValueChange={setSelectedCollabId}>
                 <SelectTrigger className="h-12 border-2 rounded-2xl font-bold bg-white">
                   <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-primary" />
+                    <User className="w-4 h-4 text-primary" />
                     <SelectValue placeholder="Profissional" />
                   </div>
                 </SelectTrigger>
@@ -193,17 +237,34 @@ export default function AdminHistory() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="w-full">
+              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                <SelectTrigger className="h-12 border-2 rounded-2xl font-bold bg-white">
+                  <div className="flex items-center gap-2">
+                    <Scissors className="w-4 h-4 text-primary" />
+                    <SelectValue placeholder="Serviço" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Serviços</SelectItem>
+                  {services?.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center gap-2 px-2">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
               <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
-                Atendimentos Finalizados
+                Atendimentos Finalizados ({completedAppointments.length})
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {completedAppointments.length > 0 ? (
                 completedAppointments.map((apt) => {
                   const aptServices = services?.filter(s => (apt.serviceIds || []).includes(s.id));

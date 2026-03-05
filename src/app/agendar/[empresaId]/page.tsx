@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -18,7 +19,8 @@ import {
   Phone,
   Calendar as CalendarIcon,
   Tag,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { format, addMinutes, isBefore, addHours, parseISO, isSameDay, getDay } from "date-fns";
@@ -109,7 +111,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     // Bloqueia se não respeita a antecedência mínima
     if (isBefore(slotStart, addHours(new Date(), minLeadTime))) return true;
 
-    const slotEnd = addMinutes(slotStart, totalDuration);
+    const slotEnd = addMinutes(slotStart, totalDuration || 30);
 
     return allAppointments.some(apt => {
       if (!apt.startTime || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado') return false;
@@ -155,6 +157,15 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       .finally(() => setIsSubmitting(false));
   };
 
+  const handleNotifyWhatsapp = () => {
+    if (!companyData || !selectedTime) return;
+    const servicesText = selectedServices.map(s => s.name).join(" + ");
+    const message = `Olá! Acabei de agendar pelo site:\n\n👤 *Cliente:* ${clientName}\n✂️ *Serviço:* ${servicesText}\n📅 *Data:* ${format(selectedDate, "dd/MM")}\n⏰ *Hora:* ${selectedTime}\n\nAté logo!`;
+    const encoded = encodeURIComponent(message);
+    const phone = companyData.phoneNumber.replace(/\D/g, "");
+    window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${encoded}`, "_blank");
+  };
+
   if (loadingCompany) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -166,9 +177,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   if (!companyData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6 text-center">
-        <div>
+        <div className="space-y-4">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
           <h1 className="text-2xl font-bold">Salão não encontrado</h1>
-          <p className="text-muted-foreground mt-2">Verifique o link e tente novamente.</p>
+          <p className="text-muted-foreground">Verifique o link e tente novamente.</p>
         </div>
       </div>
     );
@@ -179,7 +191,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="max-w-md w-full border-none shadow-2xl text-center p-8 rounded-3xl">
           <CardContent className="space-y-6 pt-6">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
+            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600 shadow-inner">
               <CheckCircle2 className="w-12 h-12" />
             </div>
             <div className="space-y-2">
@@ -187,7 +199,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
               <p className="text-muted-foreground font-medium">Seu horário foi reservado com sucesso no {companyData.name}.</p>
             </div>
             <div className="bg-secondary/30 p-6 rounded-2xl text-left space-y-3 border-2 border-border/50">
-              <p className="text-xs font-black uppercase text-muted-foreground">Resumo do Atendimento</p>
+              <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Resumo do Atendimento</p>
               <p className="font-bold flex items-center gap-2"><Scissors className="w-4 h-4 text-primary" /> {selectedServices.map(s => s.name).join(" + ")}</p>
               <p className="font-bold flex items-center gap-2"><User className="w-4 h-4 text-primary" /> {currentEmployee?.name}</p>
               <p className="font-black text-primary flex items-center gap-2">
@@ -195,9 +207,17 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                 {format(selectedDate, "PPP", { locale: ptBR })} às {selectedTime}
               </p>
             </div>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black" onClick={() => window.location.reload()}>
-              Agendar Novo
-            </Button>
+            <div className="grid gap-3">
+              {companyData.notifyInstant && (
+                <Button className="w-full h-14 rounded-2xl text-lg font-black bg-green-600 hover:bg-green-700 gap-2" onClick={handleNotifyWhatsapp}>
+                  <MessageSquare className="w-5 h-5" />
+                  Confirmar no WhatsApp
+                </Button>
+              )}
+              <Button variant="ghost" className="w-full h-14 rounded-2xl text-lg font-black" onClick={() => window.location.reload()}>
+                Fazer Novo Agendamento
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -225,10 +245,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
       <main className="flex-1 p-6 max-w-xl mx-auto w-full pb-32">
         {companyData.promotionsText && (
-          <div className="mb-8 p-6 bg-accent/10 border-2 border-accent/20 rounded-3xl relative overflow-hidden group">
+          <div className="mb-8 p-6 bg-accent/10 border-2 border-accent/20 rounded-3xl relative overflow-hidden group shadow-sm">
             <Tag className="absolute -right-4 -top-4 w-24 h-24 text-accent/10 rotate-12 group-hover:rotate-45 transition-transform" />
             <div className="flex items-start gap-4">
-              <div className="p-2 bg-accent rounded-xl text-white">
+              <div className="p-2 bg-accent rounded-xl text-white shadow-md">
                 <Tag className="w-5 h-5" />
               </div>
               <div className="space-y-1">
@@ -242,8 +262,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
         {step === 1 && (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h2 className="text-2xl font-black">Quais serviços?</h2>
-              <p className="text-sm text-muted-foreground">Você pode selecionar mais de um.</p>
+              <h2 className="text-2xl font-black">O que vamos fazer?</h2>
+              <p className="text-sm text-muted-foreground">Selecione um ou mais serviços abaixo.</p>
             </div>
             <div className="grid gap-3">
               {activeServices?.map((service) => (
@@ -252,7 +272,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   className={cn(
                     "cursor-pointer transition-all border-2 rounded-2xl overflow-hidden",
                     selectedServiceIds.includes(service.id) 
-                      ? "border-primary bg-primary/5 shadow-md" 
+                      ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
                       : "border-border hover:border-primary/30"
                   )}
                   onClick={() => {
@@ -266,8 +286,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   <CardContent className="p-5 flex justify-between items-center">
                     <div className="flex gap-4 items-center">
                       <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
-                        selectedServiceIds.includes(service.id) ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                        "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
+                        selectedServiceIds.includes(service.id) ? "bg-primary text-white shadow-lg" : "bg-primary/10 text-primary"
                       )}>
                         <Scissors className="w-6 h-6" />
                       </div>
@@ -280,7 +300,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   </CardContent>
                 </Card>
               ))}
-              {activeServices?.length === 0 && <p className="text-center py-10 text-muted-foreground">Nenhum serviço disponível.</p>}
+              {activeServices?.length === 0 && <p className="text-center py-10 text-muted-foreground font-bold">Nenhum serviço disponível no momento.</p>}
             </div>
           </div>
         )}
@@ -297,7 +317,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   className={cn(
                     "cursor-pointer transition-all border-2 rounded-2xl",
                     selectedEmployeeId === employee.id 
-                      ? "border-primary bg-primary/5 shadow-md" 
+                      ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
                       : "border-border hover:border-primary/30"
                   )}
                   onClick={() => { setSelectedEmployeeId(employee.id); setStep(3); }}
@@ -305,8 +325,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   <CardContent className="p-5 flex justify-between items-center">
                     <div className="flex gap-4 items-center">
                       <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
-                        selectedEmployeeId === employee.id ? "bg-accent text-white" : "bg-accent/10 text-accent"
+                        "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                        selectedEmployeeId === employee.id ? "bg-accent text-white shadow-lg" : "bg-accent/10 text-accent"
                       )}>
                         <User className="w-6 h-6" />
                       </div>
@@ -319,24 +339,24 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   </CardContent>
                 </Card>
               ))}
-              {activeColabs?.length === 0 && <p className="text-center py-10 text-muted-foreground">Nenhum profissional disponível para esses serviços.</p>}
+              {activeColabs?.length === 0 && <p className="text-center py-10 text-muted-foreground font-bold">Nenhum profissional disponível para esses serviços hoje.</p>}
             </div>
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black">Quando?</h2>
+            <h2 className="text-2xl font-black">Qual o melhor dia?</h2>
             <div className="space-y-4">
-              <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">Escolher Data</Label>
+              <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Data do Atendimento</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full h-14 justify-start text-left font-bold border-2 rounded-2xl px-6">
+                  <Button variant="outline" className="w-full h-16 justify-start text-left font-bold border-2 rounded-2xl px-6 bg-white shadow-sm hover:border-primary">
                     <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                    {selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : <span>Selecione</span>}
+                    {selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden shadow-2xl" align="start">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -350,9 +370,9 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
             </div>
 
             <div className="space-y-4">
-              <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">Horários Livres</Label>
+              <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Horários Disponíveis</Label>
               {timeSlots.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   {timeSlots.map((time) => {
                     const isBusy = isSlotBusy(time);
                     return (
@@ -362,8 +382,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                         disabled={isBusy}
                         className={cn(
                           "h-14 text-sm font-black rounded-2xl border-2 transition-all",
-                          isBusy && "opacity-20 grayscale bg-muted",
-                          selectedTime === time && "ring-2 ring-primary ring-offset-2"
+                          isBusy && "opacity-20 grayscale bg-muted cursor-not-allowed",
+                          selectedTime === time && "ring-4 ring-primary ring-opacity-20 border-primary"
                         )}
                         onClick={() => { setSelectedTime(time); setStep(4); }}
                       >
@@ -373,10 +393,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   })}
                 </div>
               ) : (
-                <div className="p-8 text-center bg-secondary/20 border-2 border-dashed rounded-3xl flex flex-col items-center gap-2">
-                  <AlertCircle className="w-8 h-8 text-muted-foreground" />
-                  <p className="text-sm font-bold text-muted-foreground">O salão não abre neste dia.</p>
-                  <p className="text-[10px] uppercase font-black text-muted-foreground/60">Escolha outra data acima</p>
+                <div className="p-10 text-center bg-secondary/20 border-2 border-dashed rounded-3xl flex flex-col items-center gap-3">
+                  <AlertCircle className="w-10 h-10 text-muted-foreground/40" />
+                  <p className="text-sm font-black text-muted-foreground uppercase tracking-widest">Salão Fechado</p>
+                  <p className="text-[10px] font-medium text-muted-foreground/60 leading-relaxed">Não funcionamos neste dia. Por favor, escolha outra data acima.</p>
                 </div>
               )}
             </div>
@@ -385,29 +405,32 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
         {step === 4 && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black">Quase lá!</h2>
-            <div className="space-y-4 bg-white p-6 rounded-3xl border-2 shadow-sm">
+            <h2 className="text-2xl font-black">Finalizar Reserva</h2>
+            <div className="space-y-6 bg-white p-8 rounded-3xl border-2 shadow-sm">
               <div className="space-y-2">
-                <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">Seu Nome</Label>
+                <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Seu Nome Completo</Label>
                 <Input 
                   placeholder="Ex: Maria Santos" 
                   value={clientName} 
                   onChange={(e) => setClientName(e.target.value)}
-                  className="h-14 border-2 rounded-2xl px-6 font-bold"
+                  className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">Seu WhatsApp</Label>
+                <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Seu WhatsApp</Label>
                 <Input 
                   placeholder="(00) 00000-0000" 
                   value={clientPhone} 
                   onChange={(e) => setClientPhone(e.target.value)}
-                  className="h-14 border-2 rounded-2xl px-6 font-bold"
+                  className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary"
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground italic text-center pt-2">
-                Ao confirmar, seu horário será reservado e você poderá receber uma confirmação no WhatsApp.
-              </p>
+              <div className="p-4 bg-secondary/10 rounded-2xl flex gap-3 items-start">
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
+                  Ao confirmar, seu horário será bloqueado na nossa agenda. Respeite o tempo do profissional e avise com antecedência caso precise cancelar.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -416,26 +439,26 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t p-6 pb-8 z-50">
         <div className="max-w-xl mx-auto flex justify-between items-center">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor Estimado</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Investimento</p>
             <p className="font-black text-2xl text-primary">R$ {totalPrice.toFixed(2)}</p>
           </div>
           {step === 1 && (
             <Button 
               disabled={selectedServiceIds.length === 0} 
               onClick={() => setStep(2)}
-              className="h-14 px-8 rounded-2xl font-black gap-2 shadow-lg"
+              className="h-14 px-8 rounded-2xl font-black gap-2 shadow-lg hover:scale-[1.05] transition-transform"
             >
-              Próximo <ArrowRight className="w-4 h-4" />
+              Continuar <ArrowRight className="w-4 h-4" />
             </Button>
           )}
           {step === 4 && (
             <Button 
               disabled={!clientName || !clientPhone || isSubmitting} 
               onClick={handleConfirm}
-              className="h-14 px-10 rounded-2xl font-black gap-2 shadow-lg"
+              className="h-14 px-10 rounded-2xl font-black gap-2 shadow-lg hover:scale-[1.05] transition-transform bg-primary"
             >
               {isSubmitting ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-              Confirmar Agendamento
+              Finalizar Agendamento
             </Button>
           )}
         </div>

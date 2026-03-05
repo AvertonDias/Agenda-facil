@@ -19,7 +19,8 @@ import {
   Edit2,
   Calendar as CalendarIcon,
   X,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
@@ -33,6 +34,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,6 +68,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 const statusConfig = {
   pendente: { label: "Pendente", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -71,6 +83,7 @@ export default function AdminAgenda() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
 
   // Estados do Modal
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -83,6 +96,9 @@ export default function AdminAgenda() {
   const [selectedStatus, setSelectedStatus] = useState("confirmado");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estado para confirmação de mensagem
+  const [showConfirmMessageAlert, setShowConfirmMessageAlert] = useState(false);
 
   // Queries
   const companyRef = useMemoFirebase(() => {
@@ -182,6 +198,10 @@ export default function AdminAgenda() {
     const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
     updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
     toast({ title: "Status atualizado!" });
+
+    if (newStatus === 'confirmado') {
+      setShowConfirmMessageAlert(true);
+    }
   };
 
   const handleSaveAppointment = () => {
@@ -219,6 +239,11 @@ export default function AdminAgenda() {
       updateDocumentNonBlocking(docRef, appointmentData);
       toast({ title: "Agendamento atualizado!" });
       setIsDialogOpen(false);
+      
+      if (selectedStatus === 'confirmado') {
+        setShowConfirmMessageAlert(true);
+      }
+      
       resetForm();
       setIsSubmitting(false);
     } else {
@@ -227,6 +252,11 @@ export default function AdminAgenda() {
         .then(() => {
           toast({ title: "Agendamento realizado!" });
           setIsDialogOpen(false);
+          
+          if (selectedStatus === 'confirmado') {
+            setShowConfirmMessageAlert(true);
+          }
+          
           resetForm();
         })
         .finally(() => setIsSubmitting(false));
@@ -417,6 +447,29 @@ export default function AdminAgenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showConfirmMessageAlert} onOpenChange={setShowConfirmMessageAlert}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-primary" />
+              Enviar confirmação?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O agendamento foi confirmado. Deseja ir ao Assistente de Mensagens AI para enviar uma mensagem personalizada para o cliente agora?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl font-bold">Agora não</AlertDialogCancel>
+            <AlertDialogAction 
+              className="rounded-xl font-black"
+              onClick={() => router.push('/admin/mensagens')}
+            >
+              Sim, enviar agora
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card className="border-none shadow-xl overflow-hidden bg-white rounded-2xl">
         <CardHeader className="pb-4 border-b bg-secondary/10 flex flex-row items-center justify-between">

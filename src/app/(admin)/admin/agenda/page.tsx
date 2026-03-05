@@ -47,6 +47,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAgenda() {
@@ -98,6 +103,13 @@ export default function AdminAgenda() {
     setSelectedService(apt.serviceId);
     setSelectedEmployee(apt.employeeId);
     setSelectedTime(apt.time);
+    
+    // Converte string yyyy-MM-dd para Date objeto para o picker
+    if (apt.date) {
+      const [year, month, day] = apt.date.split('-').map(Number);
+      setDate(new Date(year, month - 1, day));
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -216,6 +228,33 @@ export default function AdminAgenda() {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
+            <div className="space-y-2">
+              <Label>Data do Agendamento</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="clientName">Nome do Cliente</Label>

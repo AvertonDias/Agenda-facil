@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Calendar,
@@ -14,6 +15,7 @@ import {
   LogOut,
   ExternalLink,
   Copy,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, useUser } from "@/firebase";
@@ -28,7 +30,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeSVG } from "qrcode.react";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
@@ -47,6 +59,7 @@ export function AdminSidebar() {
   const router = useRouter();
   const { toast } = useToast();
   const { state, setOpenMobile, isMobile } = useSidebar();
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -59,11 +72,12 @@ export function AdminSidebar() {
     }
   };
 
+  const bookingUrl = typeof window !== 'undefined' && user ? `${window.location.origin}/agendar/${user.uid}` : '';
+
   const copyBookingLink = () => {
     if (!user) return;
-    const url = `${window.location.origin}/agendar/${user.uid}`;
     const salonName = user.displayName?.split(' ')[0] || 'nosso salão';
-    const message = `Olá! Você já pode agendar seu horário no ${salonName} diretamente pelo nosso site: ${url}\n\nAguardo você!`;
+    const message = `Olá! Você já pode agendar seu horário no ${salonName} diretamente pelo nosso site: ${bookingUrl}\n\nAguardo você!`;
     
     navigator.clipboard.writeText(message);
     toast({
@@ -127,6 +141,17 @@ export function AdminSidebar() {
               <span>Copiar Mensagem com Link</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setIsQrDialogOpen(true)}
+              tooltip="Gerar QR Code"
+              className="text-primary hover:bg-primary/10"
+            >
+              <QrCode className="w-5 h-5 shrink-0" />
+              <span>Gerar QR Code</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           
           {user && (
             <SidebarMenuItem>
@@ -162,6 +187,46 @@ export function AdminSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black">
+              <QrCode className="w-6 h-6 text-primary" />
+              Seu QR Code de Agendamento
+            </DialogTitle>
+            <DialogDescription className="font-medium text-muted-foreground">
+              Este código permite que seus clientes acessem sua agenda instantaneamente apenas apontando a câmera do celular.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center py-8 bg-secondary/5 rounded-3xl border-2 border-dashed gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-xl border-2">
+              {bookingUrl && <QRCodeSVG value={bookingUrl} size={200} />}
+            </div>
+            <div className="text-center px-6 space-y-2">
+              <p className="text-[10px] font-black uppercase text-primary tracking-widest">Dica de Sucesso</p>
+              <p className="text-xs font-bold text-muted-foreground leading-relaxed">
+                Você pode imprimir este código e colocar no seu balcão, espelho ou cartão de visitas para facilitar o agendamento dos seus clientes no dia a dia.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-center flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              className="rounded-xl font-bold border-2 h-12 px-6"
+              onClick={() => window.print()}
+            >
+              Imprimir QR Code
+            </Button>
+            <Button 
+              onClick={() => setIsQrDialogOpen(false)} 
+              className="rounded-xl font-black h-12 px-8"
+            >
+              Entendi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   );
 }

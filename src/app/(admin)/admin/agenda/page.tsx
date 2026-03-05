@@ -98,7 +98,8 @@ export default function AdminAgenda() {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState("");
+  // Mapeamento serviceId -> employeeId para suportar múltiplos
+  const [serviceAssignments, setServiceAssignments] = useState<Record<string, string>>({});
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("confirmado");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,7 +107,6 @@ export default function AdminAgenda() {
   const [showConfirmMessageAlert, setShowConfirmMessageAlert] = useState(false);
   const [lastConfirmedAptId, setLastConfirmedAptId] = useState<string | null>(null);
 
-  // Safe initial hydration
   useEffect(() => {
     const now = new Date();
     setDate(now);
@@ -139,15 +139,6 @@ export default function AdminAgenda() {
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
-  const minLeadTime = companyData?.minLeadTimeHours || 0;
-
-  const filteredCollaborators = useMemo(() => {
-    if (!collaborators) return [];
-    if (selectedServiceIds.length === 0) return collaborators;
-    return collaborators.filter(c => 
-      selectedServiceIds.every(sId => c.offeredServiceIds?.includes(sId))
-    );
-  }, [collaborators, selectedServiceIds]);
 
   const appointments = useMemo(() => {
     if (!allAppointments || !date) return [];
@@ -179,28 +170,45 @@ export default function AdminAgenda() {
   }, [selectedServiceIds, services]);
 
   const isSlotBusy = (time: string) => {
-    if (!allAppointments || !selectedEmployee || !selectedDate) return false;
+    if (!allAppointments || Object.keys(serviceAssignments).length === 0 || !selectedDate) return false;
     const [h, m] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
     
-    const slotEnd = addMinutes(slotStart, totalDuration || slotInterval);
+    let currentAptStart = slotStart;
+    for (const serviceId of selectedServiceIds) {
+      const empId = serviceAssignments[serviceId];
+      if (!empId) continue;
+      const service = services?.find(s => s.id === serviceId);
+      const duration = service?.durationMinutes || 30;
+      const slotEnd = addMinutes(currentAptStart, duration);
 
-    return allAppointments.some(apt => {
-      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployee || apt.status === 'cancelado') return false;
-      const aptStart = parseISO(apt.startTime);
-      const aptEnd = parseISO(apt.endTime);
-      
-      return (slotStart < aptEnd && slotEnd > aptStart);
-    });
+      const busy = allAppointments.some(apt => {
+        if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== empId || apt.status === 'cancelado') return false;
+        const aptStart = parseISO(apt.startTime);
+        const aptEnd = parseISO(apt.endTime);
+        return (currentAptStart < aptEnd && slotEnd > aptStart);
+      });
+      if (busy) return true;
+      currentAptStart = slotEnd;
+    }
+    return false;
   };
 
   const handleOpenEditDialog = (apt: any) => {
     setEditingAppointmentId(apt.id);
     setClientName(apt.clientName);
     setClientPhone(apt.clientPhone || "");
-    setSelectedServiceIds(apt.serviceIds || [apt.serviceId].filter(Boolean));
-    setSelectedEmployee(apt.employeeId);
+    const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
+    setSelectedServiceIds(aptServiceIds);
+    
+    // Mapeia o profissional atual para todos os serviços deste agendamento editado
+    const initialAssigns: Record<string, string> = {};
+    aptServiceIds.forEach((sId: string) => {
+      initialAssigns[sId] = apt.employeeId;
+    });
+    setServiceAssignments(initialAssigns);
+    
     setSelectedStatus(apt.status || "confirmado");
     if (apt.startTime) {
       const start = parseISO(apt.startTime);
@@ -215,107 +223,89 @@ export default function AdminAgenda() {
     const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
     updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
     toast({ title: "Status atualizado!" });
-
     if (newStatus === 'confirmado') {
       setLastConfirmedAptId(appointmentId);
       setShowConfirmMessageAlert(true);
     }
-
-    if (newStatus === 'concluido' && companyData?.loyaltyEnabled) {
-      const apt = allAppointments?.find(a => a.id === appointmentId);
-      const cleanPhone = apt?.clientPhone?.replace(/\D/g, "");
-      
-      if (cleanPhone) {
-        const loyaltyRef = doc(db, "empresas", user.uid, "fidelidade", cleanPhone);
-        const loyaltySnap = await getDoc(loyaltyRef);
-        
-        let currentPoints = 0;
-        if (loyaltySnap.exists()) {
-          currentPoints = loyaltySnap.data().points || 0;
-        }
-
-        const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
-        setDocumentNonBlocking(loyaltyRef, {
-          phone: cleanPhone,
-          clientName: apt?.clientName || "Cliente",
-          points: currentPoints + pointsToAdd,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-
-        toast({ 
-          title: "Pontos de Fidelidade!", 
-          description: `+${pointsToAdd} pontos creditados para ${apt?.clientName}.` 
-        });
-      }
-    }
   };
 
-  const handleSaveAppointment = () => {
-    if (!user || !clientName || selectedServiceIds.length === 0 || !selectedEmployee || !selectedTime || !selectedDate) {
-      toast({ title: "Campos obrigatórios", description: "Preencha todos os campos e selecione ao menos um serviço.", variant: "destructive" });
+  const handleSaveAppointment = async () => {
+    if (!user || !clientName || selectedServiceIds.length === 0 || Object.keys(serviceAssignments).length !== selectedServiceIds.length || !selectedTime || !selectedDate) {
+      toast({ title: "Campos obrigatórios", description: "Selecione todos os serviços e profissionais.", variant: "destructive" });
       return;
     }
 
     const [hours, minutes] = selectedTime.split(':').map(Number);
-    const startTime = new Date(selectedDate);
-    startTime.setHours(hours, minutes, 0, 0);
-
-    if (minLeadTime > 0 && isBefore(startTime, addHours(new Date(), minLeadTime))) {
-      toast({ title: "Erro de antecedência", description: `Mínimo de ${minLeadTime}h necessário.`, variant: "destructive" });
-      return;
-    }
+    const baseStartTime = new Date(selectedDate);
+    baseStartTime.setHours(hours, minutes, 0, 0);
 
     setIsSubmitting(true);
-    const endTime = addMinutes(startTime, totalDuration);
     
-    const appointmentData = {
-      clientName,
-      clientPhone,
-      serviceIds: selectedServiceIds,
-      employeeId: selectedEmployee,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      timezone: "America/Sao_Paulo",
-      status: selectedStatus,
-      updatedAt: new Date().toISOString(),
-    };
+    // Agrupa serviços por profissional para criar o mínimo de documentos possível
+    const appointmentsToCreate: { employeeId: string, serviceIds: string[], startTime: Date, endTime: Date }[] = [];
+    let currentStart = baseStartTime;
 
-    if (editingAppointmentId) {
-      const docRef = doc(db, "empresas", user.uid, "agendamentos", editingAppointmentId);
-      updateDocumentNonBlocking(docRef, appointmentData);
-      toast({ title: "Agendamento atualizado!" });
+    selectedServiceIds.forEach(sId => {
+      const empId = serviceAssignments[sId];
+      const service = services?.find(s => s.id === sId);
+      const duration = service?.durationMinutes || 30;
+      const currentEnd = addMinutes(currentStart, duration);
+
+      const lastApt = appointmentsToCreate[appointmentsToCreate.length - 1];
+      if (lastApt && lastApt.employeeId === empId) {
+        lastApt.serviceIds.push(sId);
+        lastApt.endTime = currentEnd;
+      } else {
+        appointmentsToCreate.push({
+          employeeId: empId,
+          serviceIds: [sId],
+          startTime: new Date(currentStart),
+          endTime: currentEnd
+        });
+      }
+      currentStart = currentEnd;
+    });
+
+    try {
+      if (editingAppointmentId) {
+        // Se estiver editando, apenas atualiza o documento atual (não suporta split na edição por simplicidade)
+        const docRef = doc(db, "empresas", user.uid, "agendamentos", editingAppointmentId);
+        const apt = appointmentsToCreate[0]; // Pega o primeiro grupo
+        updateDocumentNonBlocking(docRef, {
+          clientName,
+          clientPhone,
+          serviceIds: selectedServiceIds,
+          employeeId: serviceAssignments[selectedServiceIds[0]],
+          startTime: baseStartTime.toISOString(),
+          endTime: addMinutes(baseStartTime, totalDuration).toISOString(),
+          status: selectedStatus,
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
+        const promises = appointmentsToCreate.map(apt => {
+          return addDocumentNonBlocking(appointmentsRef, {
+            clientName,
+            clientPhone,
+            serviceIds: apt.serviceIds,
+            employeeId: apt.employeeId,
+            startTime: apt.startTime.toISOString(),
+            endTime: apt.endTime.toISOString(),
+            timezone: "America/Sao_Paulo",
+            status: selectedStatus,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        });
+        await Promise.all(promises);
+      }
+      toast({ title: editingAppointmentId ? "Agendamento atualizado!" : "Agendamentos realizados!" });
       setIsDialogOpen(false);
-      
-      if (selectedStatus === 'confirmado') {
-        setLastConfirmedAptId(editingAppointmentId);
-        setShowConfirmMessageAlert(true);
-      }
-
-      if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled) {
-        handleUpdateStatus(editingAppointmentId, 'concluido');
-      }
-      
       resetForm();
+    } catch (e) {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    } finally {
       setIsSubmitting(false);
-    } else {
-      const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
-      addDocumentNonBlocking(appointmentsRef, { ...appointmentData, createdAt: new Date().toISOString() })
-        .then((docRef) => {
-          toast({ title: "Agendamento realizado!" });
-          setIsDialogOpen(false);
-          
-          if (selectedStatus === 'confirmado' && docRef?.id) {
-            setLastConfirmedAptId(docRef.id);
-            setShowConfirmMessageAlert(true);
-          }
-
-          if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled && docRef?.id) {
-            handleUpdateStatus(docRef.id, 'concluido');
-          }
-          
-          resetForm();
-        })
-        .finally(() => setIsSubmitting(false));
     }
   };
 
@@ -330,7 +320,7 @@ export default function AdminAgenda() {
     setClientName("");
     setClientPhone("");
     setSelectedServiceIds([]);
-    setSelectedEmployee("");
+    setServiceAssignments({});
     setSelectedTime("");
     setSelectedStatus("confirmado");
     setSelectedDate(date || new Date());
@@ -338,9 +328,17 @@ export default function AdminAgenda() {
   };
 
   const toggleService = (id: string) => {
-    setSelectedServiceIds(prev => 
-      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
-    );
+    setSelectedServiceIds(prev => {
+      const isSelected = prev.includes(id);
+      if (isSelected) {
+        const newAssigns = { ...serviceAssignments };
+        delete newAssigns[id];
+        setServiceAssignments(newAssigns);
+        return prev.filter(sId => sId !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
   };
 
   const isInitialLoading = isUserLoading || (loadingApts && !allAppointments) || !date;
@@ -356,7 +354,7 @@ export default function AdminAgenda() {
           <p className="text-muted-foreground font-medium">Gerencie seus horários e compromissos.</p>
         </div>
         <Button 
-          className="gap-2 shadow-lg hover:shadow-xl transition-all font-bold px-8 h-12 w-full sm:w-auto"
+          className="gap-2 shadow-lg font-bold px-8 h-12 w-full sm:w-auto"
           onClick={() => { resetForm(); setIsDialogOpen(true); }}
         >
           <Plus className="w-4 h-4" />
@@ -411,96 +409,77 @@ export default function AdminAgenda() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Serviços Selecionados</Label>
-              <ScrollArea className="h-[120px] w-full border-2 rounded-xl p-3 bg-secondary/5">
-                <div className="flex flex-wrap gap-2">
-                  {services?.map(s => (
+            <div className="space-y-4">
+              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Serviços e Profissionais</Label>
+              <div className="grid gap-3 p-4 border-2 rounded-xl bg-secondary/5">
+                {services?.map(s => (
+                  <div key={s.id} className="space-y-2 border-b last:border-none pb-2">
                     <div 
-                      key={s.id} 
                       className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-full border-2 cursor-pointer transition-all",
-                        selectedServiceIds.includes(s.id) ? "bg-primary border-primary text-white" : "bg-white border-border hover:border-primary/50"
+                        "flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all",
+                        selectedServiceIds.includes(s.id) ? "bg-primary/10" : "bg-transparent"
                       )}
                       onClick={() => toggleService(s.id)}
                     >
                       <span className="text-xs font-bold">{s.name} ({s.durationMinutes}m)</span>
-                      {selectedServiceIds.includes(s.id) && <Check className="w-3 h-3" />}
+                      {selectedServiceIds.includes(s.id) ? <Check className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-muted-foreground" />}
                     </div>
-                  ))}
-                  {services?.length === 0 && <p className="text-xs text-muted-foreground">Nenhum serviço disponível.</p>}
-                </div>
-              </ScrollArea>
-              {selectedServiceIds.length > 0 && (
-                <p className="text-[10px] font-black uppercase text-primary text-right">Duração total: {totalDuration} minutos</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
-                <Select onValueChange={setSelectedEmployee} value={selectedEmployee}>
-                  <SelectTrigger className="h-12 border-2 rounded-xl">
-                    <SelectValue placeholder={selectedServiceIds.length === 0 ? "Escolha o serviço primeiro" : "Selecione"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredCollaborators.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    {selectedServiceIds.length > 0 && filteredCollaborators.length === 0 && (
-                      <p className="text-[10px] p-2 text-muted-foreground font-bold">Nenhum profissional faz todos os serviços selecionados.</p>
+                    {selectedServiceIds.includes(s.id) && (
+                      <Select 
+                        onValueChange={(v) => setServiceAssignments(prev => ({ ...prev, [s.id]: v }))} 
+                        value={serviceAssignments[s.id]}
+                      >
+                        <SelectTrigger className="h-9 border-2 text-[10px] font-bold">
+                          <SelectValue placeholder="Escolha quem vai fazer..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {collaborators?.filter(c => c.offeredServiceIds?.includes(s.id)).map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
-                <Select onValueChange={setSelectedStatus} value={selectedStatus}>
-                  <SelectTrigger className="h-12 border-2 rounded-xl">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="confirmado">Confirmado</SelectItem>
-                    <SelectItem value="concluido">Concluído</SelectItem>
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                    <SelectItem value="nao_compareceu">Não Compareceu</SelectItem>
-                  </SelectContent>
-                </Select>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Horários Disponíveis</Label>
-              {selectedServiceIds.length === 0 || !selectedEmployee ? (
-                <div className="p-4 border-2 border-dashed rounded-xl bg-secondary/5 text-center">
-                  <p className="text-xs text-muted-foreground font-bold">Selecione ao menos um serviço e um profissional para ver as vagas.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto p-2 border-2 rounded-xl bg-background">
-                  {timeSlots.map(time => {
-                    const isBusy = isSlotBusy(time);
-                    const [h, m] = time.split(':').map(Number);
-                    const endT = addMinutes(new Date(2000, 0, 1, h, m), totalDuration);
-                    const endTimeStr = format(endT, "HH:mm");
+              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
+              <Select onValueChange={setSelectedStatus} value={selectedStatus}>
+                <SelectTrigger className="h-12 border-2 rounded-xl">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="confirmado">Confirmado</SelectItem>
+                  <SelectItem value="concluido">Concluído</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                    return (
-                      <Button
-                        key={time}
-                        variant={selectedTime === time ? "default" : "outline"}
-                        disabled={isBusy}
-                        className={cn(
-                          "h-12 flex flex-col items-center justify-center font-black border-2 rounded-xl",
-                          isBusy && "opacity-20 grayscale cursor-not-allowed bg-muted",
-                          selectedTime === time && "ring-2 ring-primary ring-offset-1"
-                        )}
-                        onClick={() => setSelectedTime(time)}
-                      >
-                        <span className="text-[10px]">{time}</span>
-                        <span className="text-[7px] uppercase">até {endTimeStr}</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Horários Disponíveis</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[200px] overflow-y-auto p-2 border-2 rounded-xl bg-background">
+                {timeSlots.map(time => {
+                  const isBusy = isSlotBusy(time);
+                  return (
+                    <Button
+                      key={time}
+                      variant={selectedTime === time ? "default" : "outline"}
+                      disabled={isBusy}
+                      className={cn(
+                        "h-10 text-[10px] font-black border-2 rounded-xl",
+                        isBusy && "opacity-20 bg-muted cursor-not-allowed",
+                      )}
+                      onClick={() => setSelectedTime(time)}
+                    >
+                      {time}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -512,29 +491,6 @@ export default function AdminAgenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={showConfirmMessageAlert} onOpenChange={setShowConfirmMessageAlert}>
-        <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              Enviar confirmação?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              O agendamento foi confirmado. Deseja ir ao Assistente de Mensagens AI para enviar uma mensagem personalizada para o cliente agora?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl font-bold">Agora não</AlertDialogCancel>
-            <AlertDialogAction 
-              className="rounded-xl font-black"
-              onClick={() => router.push(`/admin/mensagens?appointmentId=${lastConfirmedAptId}`)}
-            >
-              Sim, enviar agora
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Card className="border-none shadow-xl overflow-hidden bg-white rounded-2xl">
         <CardHeader className="pb-4 border-b bg-secondary/10 flex flex-row items-center justify-between">
@@ -554,7 +510,6 @@ export default function AdminAgenda() {
           <CardTitle className="text-2xl font-black tracking-tight">Compromissos</CardTitle>
           <p className="text-xs text-muted-foreground font-bold uppercase">Agenda para {date ? format(date, "PPP", { locale: ptBR }) : ''}</p>
         </CardHeader>
-        
         <CardContent className="flex-1 p-0">
           {isInitialLoading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -575,38 +530,22 @@ export default function AdminAgenda() {
                       <span className="text-xl font-black">{aptTime}</span>
                       <div className="w-1.5 h-full mt-2 rounded-full bg-primary/20" />
                     </div>
-
                     <div className="flex-1 space-y-4">
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="text-lg font-black">{apt.clientName}</h4>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5 cursor-pointer hover:opacity-80 transition-opacity", currentStatus.color)}>
-                                  {currentStatus.label}
-                                </Badge>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" className="font-bold">
-                                {Object.entries(statusConfig).map(([statusKey, config]) => (
-                                  <DropdownMenuItem key={statusKey} onClick={() => handleUpdateStatus(apt.id, statusKey)}>
-                                    <Badge className={cn("text-[8px] mr-2 h-4 font-black uppercase border-2 leading-none px-1.5", config.color)}>
-                                      {config.label}
-                                    </Badge>
-                                    Mudar para {config.label}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5", currentStatus.color)}>
+                              {currentStatus.label}
+                            </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1.5 font-bold">
                             <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone ? maskPhone(apt.clientPhone) : "Sem tel"}
                           </p>
                         </div>
-                        
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 border-2 rounded-full hover:bg-primary/10">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 border-2 rounded-full">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -620,7 +559,6 @@ export default function AdminAgenda() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-
                       <div className="grid grid-cols-1 gap-3">
                         <div className="flex flex-wrap gap-2">
                           {appointmentServices?.map(s => (
@@ -643,7 +581,7 @@ export default function AdminAgenda() {
           ) : (
             <div className="flex flex-col items-center justify-center py-32 text-center px-4">
               <CalendarIcon className="w-12 h-12 text-muted-foreground/30 mb-4" />
-              <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Nenhum agendamento para este dia.</p>
+              <p className="text-muted-foreground font-bold uppercase text-xs">Nenhum agendamento para este dia.</p>
             </div>
           )}
         </CardContent>
@@ -651,3 +589,4 @@ export default function AdminAgenda() {
     </div>
   );
 }
+

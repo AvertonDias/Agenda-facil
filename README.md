@@ -16,33 +16,31 @@ O **AgendaFácil Pro** é uma solução completa para automatizar agendamentos, 
 
 ## Como subir para o GitHub
 
-Se você recebeu o erro `fatal: Need to specify how to reconcile divergent branches`, utilize o comando abaixo para forçar a sincronização inicial:
+Se você já rodou o comando de `pull` e o terminal informou que está tudo atualizado, agora é só enviar os arquivos.
 
-### 1. Sincronizar arquivos do GitHub com o local:
-```bash
-git pull origin main --no-rebase --allow-unrelated-histories
-```
-
-### 2. Dica: "Waiting for your editor to close the file..."
-Se o terminal travar com essa mensagem após o comando acima:
-1. Olhe as abas de arquivos abertas no topo deste editor.
-2. Procure por uma aba chamada `MERGE_MSG`.
-3. **Feche essa aba** (clique no 'x'). O terminal destravará na hora.
-
-### 3. Agora, envie seus arquivos:
+### 1. Envie seus arquivos para o GitHub:
 ```bash
 git push -u origin main
 ```
 
 ---
 
-### Comandos Iniciais (Caso esteja começando do zero):
+### Dicas Úteis:
+
+**"Waiting for your editor to close the file..."**
+Se o terminal travar com essa mensagem em algum momento:
+1. Olhe as abas de arquivos abertas no topo deste editor.
+2. Procure por uma aba chamada `MERGE_MSG` ou `COMMIT_EDITMSG`.
+3. **Feche essa aba** (clique no 'x'). O terminal destravará na hora.
+
+### Comandos de Emergência (Caso precise recomeçar):
 ```bash
 git init
 git add .
 git commit -m "primeiro commit"
 git branch -M main
 git remote add origin https://github.com/AvertonDias/Agenda-facil.git
+git pull origin main --no-rebase --allow-unrelated-histories
 git push -u origin main
 ```
 

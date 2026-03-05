@@ -77,13 +77,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     
     const dayName = DAY_MAP[getDay(selectedDate)];
     
-    // Encontrar a melhor promoção aplicável
     for (const promo of companyData.automaticPromotions) {
-      // Verificar dia da semana
       const dayMatches = promo.dayOfWeek === "any" || promo.dayOfWeek === dayName;
       if (!dayMatches) continue;
 
-      // Verificar se o combo de serviços está completo no carrinho
       const allServicesSelected = promo.serviceIds.every((sId: string) => selectedServiceIds.includes(sId));
       if (!allServicesSelected || promo.serviceIds.length === 0) continue;
 
@@ -134,7 +131,6 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     slotStart.setHours(h, m, 0, 0);
     
     if (isSameDay(selectedDate, new Date()) && isBefore(slotStart, new Date())) return true;
-    
     if (isBefore(slotStart, addHours(new Date(), minLeadTime))) return true;
 
     const slotEnd = addMinutes(slotStart, totalDuration || 30);
@@ -214,6 +210,8 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     );
   }
 
+  const allPromotions = companyData.promotions || (companyData.promotionsText ? [companyData.promotionsText] : []);
+
   if (step === 5) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -276,18 +274,22 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       </header>
 
       <main className="flex-1 p-6 max-w-xl mx-auto w-full pb-32">
-        {companyData.promotionsText && (
-          <div className="mb-8 p-6 bg-accent/10 border-2 border-accent/20 rounded-3xl relative overflow-hidden group shadow-sm">
-            <Tag className="absolute -right-4 -top-4 w-24 h-24 text-accent/10 rotate-12 group-hover:rotate-45 transition-transform" />
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-accent rounded-xl text-white shadow-md">
-                <Tag className="w-5 h-5" />
+        {allPromotions.length > 0 && (
+          <div className="space-y-4 mb-8">
+            {allPromotions.map((text, i) => (
+              <div key={i} className="p-6 bg-accent/10 border-2 border-accent/20 rounded-3xl relative overflow-hidden group shadow-sm">
+                <Tag className="absolute -right-4 -top-4 w-24 h-24 text-accent/10 rotate-12 group-hover:rotate-45 transition-transform" />
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-accent rounded-xl text-white shadow-md">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black uppercase text-accent tracking-widest">Destaque do Salão</h3>
+                    <p className="text-lg font-bold leading-tight">{text}</p>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-black uppercase text-accent tracking-widest">Destaque do Salão</h3>
-                <p className="text-lg font-bold leading-tight">{companyData.promotionsText}</p>
-              </div>
-            </div>
+            ))}
           </div>
         )}
 

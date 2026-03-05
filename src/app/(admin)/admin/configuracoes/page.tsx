@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle, Settings, Plus, Trash2, Zap } from "lucide-react";
+import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle, Settings, Plus, Trash2, Zap, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
@@ -54,7 +54,7 @@ export default function AdminSettings() {
     sunday: { open: "08:00", close: "12:00", closed: true },
   });
 
-  const [promotionsText, setPromotionsText] = useState("");
+  const [promotions, setPromotions] = useState<string[]>([]);
   const [automaticPromotions, setAutomaticPromotions] = useState<any[]>([]);
 
   const companyRef = useMemoFirebase(() => {
@@ -82,7 +82,16 @@ export default function AdminSettings() {
       if (companyData.workingHours) {
         setWorkingHours(companyData.workingHours);
       }
-      setPromotionsText(companyData.promotionsText || "");
+      
+      // Migração de campo único para lista se necessário
+      if (Array.isArray(companyData.promotions)) {
+        setPromotions(companyData.promotions);
+      } else if (companyData.promotionsText) {
+        setPromotions([companyData.promotionsText]);
+      } else {
+        setPromotions([]);
+      }
+      
       setAutomaticPromotions(companyData.automaticPromotions || []);
     }
   }, [companyData]);
@@ -101,7 +110,7 @@ export default function AdminSettings() {
       minLeadTimeHours: parseInt(minLeadTimeHours) || 0,
       slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
       workingHours,
-      promotionsText,
+      promotions, // Salva como array
       automaticPromotions,
       ownerId: user.uid,
       updatedAt: serverTimestamp(),
@@ -123,6 +132,20 @@ export default function AdminSettings() {
       ...prev,
       [day]: { ...prev[day], [field]: value }
     }));
+  };
+
+  const addBanner = () => {
+    setPromotions(prev => [...prev, ""]);
+  };
+
+  const updateBanner = (index: number, value: string) => {
+    const newBanners = [...promotions];
+    newBanners[index] = value;
+    setPromotions(newBanners);
+  };
+
+  const removeBanner = (index: number) => {
+    setPromotions(prev => prev.filter((_, i) => i !== index));
   };
 
   const addPromotion = () => {
@@ -314,20 +337,41 @@ export default function AdminSettings() {
         <TabsContent value="promocoes">
           <div className="space-y-6">
             <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="bg-secondary/10">
-                <CardTitle>Promoções e Avisos</CardTitle>
-                <CardDescription>Destaque mensagens importantes na sua página pública.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8">
-                <div className="space-y-4">
-                  <Label className="font-bold">Texto de Promoção (Banner)</Label>
-                  <Textarea 
-                    value={promotionsText} 
-                    onChange={(e) => setPromotionsText(e.target.value)} 
-                    placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
-                    className="min-h-[150px] text-lg font-bold p-8 border-2 rounded-3xl"
-                  />
+              <CardHeader className="bg-secondary/10 border-b">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Promoções e Avisos (Banners)</CardTitle>
+                    <CardDescription>Destaque mensagens importantes na sua página pública.</CardDescription>
+                  </div>
+                  <Button onClick={addBanner} variant="outline" className="border-2 rounded-xl font-bold gap-2">
+                    <Plus className="w-4 h-4" /> Add Banner
+                  </Button>
                 </div>
+              </CardHeader>
+              <CardContent className="p-8 space-y-4">
+                {promotions.length === 0 && (
+                  <div className="text-center py-8 border-2 border-dashed rounded-3xl bg-secondary/5">
+                    <p className="text-muted-foreground font-bold">Nenhum banner configurado.</p>
+                  </div>
+                )}
+                {promotions.map((text, index) => (
+                  <div key={index} className="flex gap-2 items-start group">
+                    <Textarea 
+                      value={text} 
+                      onChange={(e) => updateBanner(index, e.target.value)} 
+                      placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
+                      className="min-h-[100px] text-lg font-bold p-6 border-2 rounded-2xl flex-1"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => removeBanner(index)}
+                      className="text-destructive h-10 w-10 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                ))}
               </CardContent>
             </Card>
 

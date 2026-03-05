@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { generateWhatsappMessage, type GenerateWhatsappMessageInput } from "@/ai/flows/generate-whatsapp-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,9 @@ function AdminMessagesContent() {
   const db = useFirestore();
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const appointmentIdParam = searchParams.get('appointmentId');
+  const lastLoadedId = useRef<string | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState("");
@@ -62,13 +64,6 @@ function AdminMessagesContent() {
     }
   }, [companyData?.name]);
 
-  // Efeito para auto-carregar o agendamento se vier via URL
-  useEffect(() => {
-    if (!loadingApts && appointments && services && appointmentIdParam) {
-      handleSelectAppointment(appointmentIdParam);
-    }
-  }, [loadingApts, appointments, services, appointmentIdParam]);
-
   const sortedAppointments = useMemo(() => {
     if (!appointments) return [];
     return [...appointments]
@@ -77,7 +72,9 @@ function AdminMessagesContent() {
       .slice(0, 20);
   }, [appointments]);
 
-  const handleSelectAppointment = (appointmentId: string) => {
+  const handleSelectAppointment = useCallback((appointmentId: string) => {
+    if (appointmentId === "none") return;
+    
     const apt = appointments?.find(a => a.id === appointmentId);
     if (!apt || !apt.startTime) return;
 
@@ -85,20 +82,34 @@ function AdminMessagesContent() {
     const serviceNames = aptServices?.map(s => s.name).join(" + ") || "Serviço";
     const formattedDate = format(parseISO(apt.startTime), "dd/MM 'às' HH:mm", { locale: ptBR });
 
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       clientName: apt.clientName,
       serviceDetails: serviceNames,
       appointmentDateTime: formattedDate,
-    });
+    }));
 
     setClientPhone(apt.clientPhone || "");
+
+    // Atualiza a URL para manter o Select em sincronia visual sem recarregar a página
+    const params = new URLSearchParams(window.location.search);
+    params.set('appointmentId', appointmentId);
+    window.history.replaceState(null, '', `?${params.toString()}`);
+    
+    lastLoadedId.current = appointmentId;
 
     toast({
       title: "Dados importados!",
       description: `Agendamento de ${apt.clientName} selecionado.`,
     });
-  };
+  }, [appointments, services, toast]);
+
+  // Efeito para auto-carregar o agendamento se vier via URL ou mudar
+  useEffect(() => {
+    if (!loadingApts && appointments && services && appointmentIdParam && appointmentIdParam !== lastLoadedId.current) {
+      handleSelectAppointment(appointmentIdParam);
+    }
+  }, [loadingApts, appointments, services, appointmentIdParam, handleSelectAppointment]);
 
   const handleGenerate = async () => {
     if (!formData.clientName) {
@@ -168,7 +179,7 @@ function AdminMessagesContent() {
                   <SelectContent>
                     {sortedAppointments.map((apt) => (
                       <SelectItem key={apt.id} value={apt.id}>
-                        <div className="flex flex-col items-start">
+                        <div className="flex flex-col items-start text-left">
                           <span className="font-bold">{apt.clientName}</span>
                           <span className="text-[10px] text-muted-foreground">
                             {format(parseISO(apt.startTime), "dd/MM 'às' HH:mm")}

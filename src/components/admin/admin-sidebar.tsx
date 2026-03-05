@@ -62,10 +62,13 @@ export function AdminSidebar() {
   const copyBookingLink = () => {
     if (!user) return;
     const url = `${window.location.origin}/agendar/${user.uid}`;
-    navigator.clipboard.writeText(url);
+    const salonName = user.displayName?.split(' ')[0] || 'nosso salão';
+    const message = `Olá! Você já pode agendar seu horário no ${salonName} diretamente pelo nosso site: ${url}\n\nAguardo você!`;
+    
+    navigator.clipboard.writeText(message);
     toast({
-      title: "Link copiado!",
-      description: "Envie para seus clientes agendarem sozinhos.",
+      title: "Mensagem copiada!",
+      description: "A mensagem com o seu link de agendamento foi copiada. Agora é só colar no WhatsApp!",
     });
   };
 
@@ -117,11 +120,11 @@ export function AdminSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={copyBookingLink}
-              tooltip="Copiar Link de Agendamento"
+              tooltip="Copiar Mensagem com Link"
               className="text-primary hover:bg-primary/10"
             >
               <Copy className="w-5 h-5 shrink-0" />
-              <span>Copiar Link de Agendamento</span>
+              <span>Copiar Mensagem com Link</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           

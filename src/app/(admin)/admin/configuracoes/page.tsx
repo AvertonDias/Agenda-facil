@@ -8,10 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Save, Building2, Bell, Smartphone, Loader2, Clock } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
+import { cn } from "@/lib/utils";
+
+const DAYS_OF_WEEK = [
+  { id: "monday", label: "Segunda-feira" },
+  { id: "tuesday", label: "Terça-feira" },
+  { id: "wednesday", label: "Quarta-feira" },
+  { id: "thursday", label: "Quinta-feira" },
+  { id: "friday", label: "Sexta-feira" },
+  { id: "saturday", label: "Sábado" },
+  { id: "sunday", label: "Domingo" },
+];
 
 export default function AdminSettings() {
   const { user } = useUser();
@@ -32,6 +44,20 @@ export default function AdminSettings() {
   const [minLeadTimeHours, setMinLeadTimeHours] = useState("2");
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState("30");
 
+  // State para Horário de Funcionamento
+  const [workingHours, setWorkingHours] = useState<Record<string, { open: string, close: string, closed: boolean }>>({
+    monday: { open: "08:00", close: "18:00", closed: false },
+    tuesday: { open: "08:00", close: "18:00", closed: false },
+    wednesday: { open: "08:00", close: "18:00", closed: false },
+    thursday: { open: "08:00", close: "18:00", closed: false },
+    friday: { open: "08:00", close: "18:00", closed: false },
+    saturday: { open: "08:00", close: "12:00", closed: false },
+    sunday: { open: "08:00", close: "12:00", closed: true },
+  });
+
+  // State para Promoções
+  const [promotionsText, setPromotionsText] = useState("");
+
   const companyRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "empresas", user.uid);
@@ -48,6 +74,10 @@ export default function AdminSettings() {
       setNotifyReminder24h(companyData.notifyReminder24h ?? true);
       setMinLeadTimeHours(String(companyData.minLeadTimeHours ?? "2"));
       setSlotIntervalMinutes(String(companyData.slotIntervalMinutes ?? "30"));
+      if (companyData.workingHours) {
+        setWorkingHours(companyData.workingHours);
+      }
+      setPromotionsText(companyData.promotionsText || "");
     }
   }, [companyData]);
 
@@ -64,6 +94,8 @@ export default function AdminSettings() {
       notifyReminder24h,
       minLeadTimeHours: parseInt(minLeadTimeHours) || 0,
       slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
+      workingHours,
+      promotionsText,
       ownerId: user.uid,
       updatedAt: serverTimestamp(),
     };
@@ -74,9 +106,16 @@ export default function AdminSettings() {
       setLoading(false);
       toast({
         title: "Configurações atualizadas!",
-        description: "Suas preferências foram salvas e aplicadas à agenda.",
+        description: "Suas preferências foram salvas e aplicadas.",
       });
     }, 500);
+  };
+
+  const updateDay = (day: string, field: string, value: any) => {
+    setWorkingHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], [field]: value }
+    }));
   };
 
   if (isLoading) {
@@ -106,13 +145,21 @@ export default function AdminSettings() {
             <Building2 className="w-4 h-4" />
             Perfil
           </TabsTrigger>
+          <TabsTrigger value="horario" className="gap-2 px-4 py-2">
+            <Clock className="w-4 h-4" />
+            Horário
+          </TabsTrigger>
+          <TabsTrigger value="regras" className="gap-2 px-4 py-2">
+            <CalendarDays className="w-4 h-4" />
+            Regras
+          </TabsTrigger>
           <TabsTrigger value="notificacoes" className="gap-2 px-4 py-2">
             <Bell className="w-4 h-4" />
             Notificações
           </TabsTrigger>
-          <TabsTrigger value="regras" className="gap-2 px-4 py-2">
-            <Clock className="w-4 h-4" />
-            Regras de Agenda
+          <TabsTrigger value="promocoes" className="gap-2 px-4 py-2">
+            <Tag className="w-4 h-4" />
+            Promoções
           </TabsTrigger>
         </TabsList>
 
@@ -156,11 +203,90 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="horario" className="space-y-6">
+          <Card className="border-none shadow-sm">
+            <CardHeader>
+              <CardTitle>Horário de Funcionamento</CardTitle>
+              <CardDescription>Defina os períodos em que sua agenda estará aberta para clientes.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {DAYS_OF_WEEK.map((day) => (
+                <div key={day.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-dashed bg-secondary/5">
+                  <div className="flex items-center gap-4 min-w-[150px]">
+                    <Switch 
+                      checked={!workingHours[day.id]?.closed} 
+                      onCheckedChange={(checked) => updateDay(day.id, "closed", !checked)} 
+                    />
+                    <Label className={cn("font-bold", workingHours[day.id]?.closed && "text-muted-foreground line-through")}>
+                      {day.label}
+                    </Label>
+                  </div>
+                  
+                  {!workingHours[day.id]?.closed && (
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="time" 
+                        value={workingHours[day.id]?.open} 
+                        onChange={(e) => updateDay(day.id, "open", e.target.value)}
+                        className="w-[120px] h-10 font-bold"
+                      />
+                      <span className="text-muted-foreground font-bold">até</span>
+                      <Input 
+                        type="time" 
+                        value={workingHours[day.id]?.close} 
+                        onChange={(e) => updateDay(day.id, "close", e.target.value)}
+                        className="w-[120px] h-10 font-bold"
+                      />
+                    </div>
+                  )}
+                  
+                  {workingHours[day.id]?.closed && (
+                    <span className="text-xs font-black uppercase text-destructive tracking-widest">Fechado</span>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="regras">
+          <Card className="border-none shadow-sm">
+            <CardHeader>
+              <CardTitle>Regras de Negócio</CardTitle>
+              <CardDescription>Defina os limites de agendamento para evitar surpresas.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Antecedência Mínima (horas)</Label>
+                  <Input 
+                    type="number" 
+                    value={minLeadTimeHours} 
+                    onChange={(e) => setMinLeadTimeHours(e.target.value)} 
+                    className="h-12"
+                  />
+                  <p className="text-[10px] text-muted-foreground font-medium">Impede que clientes agendem com menos de {minLeadTimeHours}h de antecedência.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Intervalo entre Vagas (minutos)</Label>
+                  <Input 
+                    type="number" 
+                    value={slotIntervalMinutes} 
+                    onChange={(e) => setSlotIntervalMinutes(e.target.value)} 
+                    className="h-12"
+                  />
+                  <p className="text-[10px] text-muted-foreground font-medium">Ex: 15, 30, 45 ou 60 minutos.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="notificacoes">
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle>Automações</CardTitle>
-              <CardDescription>Configure os envios automáticos via WhatsApp.</CardDescription>
+              <CardDescription>Configure os envios automáticos para reduzir faltas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -184,34 +310,22 @@ export default function AdminSettings() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="regras">
+        <TabsContent value="promocoes">
           <Card className="border-none shadow-sm">
             <CardHeader>
-              <CardTitle>Regras de Negócio</CardTitle>
-              <CardDescription>Defina os limites de agendamento.</CardDescription>
+              <CardTitle>Ofertas e Promoções</CardTitle>
+              <CardDescription>Destaque serviços em promoção na sua página pública.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Antecedência Mínima (horas)</Label>
-                  <Input 
-                    type="number" 
-                    value={minLeadTimeHours} 
-                    onChange={(e) => setMinLeadTimeHours(e.target.value)} 
-                    className="h-12"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Impede agendamentos "em cima da hora".</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Intervalo entre Vagas (minutos)</Label>
-                  <Input 
-                    type="number" 
-                    value={slotIntervalMinutes} 
-                    onChange={(e) => setSlotIntervalMinutes(e.target.value)} 
-                    className="h-12"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Ex: 15, 30, 45 ou 60 minutos.</p>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Texto de Promoção (Destaque)</Label>
+                <Textarea 
+                  value={promotionsText} 
+                  onChange={(e) => setPromotionsText(e.target.value)} 
+                  placeholder="Ex: 20% OFF em todos os serviços de barba às terças-feiras! ✂️"
+                  className="min-h-[120px] text-lg font-medium p-6"
+                />
+                <p className="text-xs text-muted-foreground">Este texto aparecerá no topo da sua página de agendamento pública.</p>
               </div>
             </CardContent>
           </Card>

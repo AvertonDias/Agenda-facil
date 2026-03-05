@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -26,6 +25,10 @@
         "phoneNumber": { "type": "string" },
         "address": { "type": "string" },
         "plan": { "type": "string" },
+        "workingHours": { "type": "object", "description": "Mapa de horários por dia da semana" },
+        "promotionsText": { "type": "string", "description": "Texto de destaque para promoções" },
+        "minLeadTimeHours": { "type": "number" },
+        "slotIntervalMinutes": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "ownerId"]

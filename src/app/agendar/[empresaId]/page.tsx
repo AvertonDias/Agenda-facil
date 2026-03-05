@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -17,10 +16,12 @@ import {
   CheckCircle2, 
   Loader2,
   Phone,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Tag,
+  AlertCircle
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { format, addMinutes, isBefore, addHours, parseISO, isSameDay } from "date-fns";
+import { format, addMinutes, isBefore, addHours, parseISO, isSameDay, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+const DAY_MAP = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 export default function PublicBookingPage(props: { params: Promise<{ empresaId: string }> }) {
   const { empresaId } = React.use(props.params);
@@ -69,20 +72,30 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
   const minLeadTime = companyData?.minLeadTimeHours || 0;
 
-  // Geração de horários
+  // Geração de horários respeitando horário de funcionamento
   const timeSlots = useMemo(() => {
+    if (!companyData || !selectedDate) return [];
+
+    const dayName = DAY_MAP[getDay(selectedDate)];
+    const config = companyData.workingHours?.[dayName];
+
+    if (!config || config.closed) return [];
+
     const slots = [];
-    let current = new Date();
-    current.setHours(8, 0, 0, 0);
-    const end = new Date();
-    end.setHours(20, 0, 0, 0);
+    const [startH, startM] = config.open.split(":").map(Number);
+    const [endH, endM] = config.close.split(":").map(Number);
+
+    let current = new Date(selectedDate);
+    current.setHours(startH, startM, 0, 0);
+    const end = new Date(selectedDate);
+    end.setHours(endH, endM, 0, 0);
 
     while (current <= end) {
       slots.push(format(current, "HH:mm"));
       current = addMinutes(current, slotInterval);
     }
     return slots;
-  }, [slotInterval]);
+  }, [selectedDate, companyData, slotInterval]);
 
   const isSlotBusy = (time: string) => {
     if (!allAppointments || !selectedEmployeeId) return false;
@@ -211,6 +224,21 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
       </header>
 
       <main className="flex-1 p-6 max-w-xl mx-auto w-full pb-32">
+        {companyData.promotionsText && (
+          <div className="mb-8 p-6 bg-accent/10 border-2 border-accent/20 rounded-3xl relative overflow-hidden group">
+            <Tag className="absolute -right-4 -top-4 w-24 h-24 text-accent/10 rotate-12 group-hover:rotate-45 transition-transform" />
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-accent rounded-xl text-white">
+                <Tag className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black uppercase text-accent tracking-widest">Destaque do Salão</h3>
+                <p className="text-lg font-bold leading-tight">{companyData.promotionsText}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {step === 1 && (
           <div className="space-y-6">
             <div className="space-y-1">
@@ -323,26 +351,34 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
             <div className="space-y-4">
               <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">Horários Livres</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {timeSlots.map((time) => {
-                  const isBusy = isSlotBusy(time);
-                  return (
-                    <Button 
-                      key={time} 
-                      variant={selectedTime === time ? "default" : "outline"}
-                      disabled={isBusy}
-                      className={cn(
-                        "h-14 text-sm font-black rounded-2xl border-2 transition-all",
-                        isBusy && "opacity-20 grayscale bg-muted",
-                        selectedTime === time && "ring-2 ring-primary ring-offset-2"
-                      )}
-                      onClick={() => { setSelectedTime(time); setStep(4); }}
-                    >
-                      {time}
-                    </Button>
-                  );
-                })}
-              </div>
+              {timeSlots.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {timeSlots.map((time) => {
+                    const isBusy = isSlotBusy(time);
+                    return (
+                      <Button 
+                        key={time} 
+                        variant={selectedTime === time ? "default" : "outline"}
+                        disabled={isBusy}
+                        className={cn(
+                          "h-14 text-sm font-black rounded-2xl border-2 transition-all",
+                          isBusy && "opacity-20 grayscale bg-muted",
+                          selectedTime === time && "ring-2 ring-primary ring-offset-2"
+                        )}
+                        onClick={() => { setSelectedTime(time); setStep(4); }}
+                      >
+                        {time}
+                      </Button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-secondary/20 border-2 border-dashed rounded-3xl flex flex-col items-center gap-2">
+                  <AlertCircle className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-sm font-bold text-muted-foreground">O salão não abre neste dia.</p>
+                  <p className="text-[10px] uppercase font-black text-muted-foreground/60">Escolha outra data acima</p>
+                </div>
+              )}
             </div>
           </div>
         )}

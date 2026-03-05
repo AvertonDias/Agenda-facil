@@ -2,26 +2,26 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   CalendarDays, 
-  Clock, 
   Scissors, 
   User, 
   ArrowRight, 
   ChevronLeft, 
   CheckCircle2, 
   Loader2,
-  Phone,
   Calendar as CalendarIcon,
   Tag,
   AlertCircle,
   MessageSquare,
-  Zap
+  Zap,
+  Gift,
+  Trophy
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { format, addMinutes, isBefore, addHours, parseISO, isSameDay, getDay } from "date-fns";
@@ -48,6 +48,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loyaltyPoints, setLoyaltyPoints] = useState<number | null>(null);
 
   const empresaRef = useMemoFirebase(() => doc(db, "empresas", empresaId), [db, empresaId]);
   const servicesQuery = useMemoFirebase(() => collection(db, "empresas", empresaId, "servicos"), [db, empresaId]);
@@ -71,19 +72,14 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
   const rawTotalPrice = selectedServices.reduce((acc, s) => acc + (s.basePrice || 0), 0);
   const totalDuration = selectedServices.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
 
-  // Lógica de Promoções Automáticas
   const appliedPromotion = useMemo(() => {
     if (!companyData?.automaticPromotions || !selectedDate || selectedServiceIds.length === 0) return null;
-    
     const dayName = DAY_MAP[getDay(selectedDate)];
-    
     for (const promo of companyData.automaticPromotions) {
       const dayMatches = promo.dayOfWeek === "any" || promo.dayOfWeek === dayName;
       if (!dayMatches) continue;
-
       const allServicesSelected = promo.serviceIds.every((sId: string) => selectedServiceIds.includes(sId));
       if (!allServicesSelected || promo.serviceIds.length === 0) continue;
-
       return promo;
     }
     return null;
@@ -102,21 +98,16 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
   const timeSlots = useMemo(() => {
     if (!companyData || !selectedDate) return [];
-
     const dayName = DAY_MAP[getDay(selectedDate)];
     const config = companyData.workingHours?.[dayName];
-
     if (!config || config.closed) return [];
-
     const slots = [];
     const [startH, startM] = config.open.split(":").map(Number);
     const [endH, endM] = config.close.split(":").map(Number);
-
     let current = new Date(selectedDate);
     current.setHours(startH, startM, 0, 0);
     const end = new Date(selectedDate);
     end.setHours(endH, endM, 0, 0);
-
     while (current <= end) {
       slots.push(format(current, "HH:mm"));
       current = addMinutes(current, slotInterval);
@@ -129,12 +120,9 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     const [h, m] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
-    
     if (isSameDay(selectedDate, new Date()) && isBefore(slotStart, new Date())) return true;
     if (isBefore(slotStart, addHours(new Date(), minLeadTime))) return true;
-
     const slotEnd = addMinutes(slotStart, totalDuration || 30);
-
     return allAppointments.some(apt => {
       if (!apt.startTime || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado') return false;
       const aptStart = parseISO(apt.startTime);
@@ -172,7 +160,18 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
 
     const aptsRef = collection(db, "empresas", empresaId, "agendamentos");
     addDocumentNonBlocking(aptsRef, appointmentData)
-      .then(() => {
+      .then(async () => {
+        // Fetch loyalty after success
+        if (companyData?.loyaltyEnabled) {
+          const cleanPhone = clientPhone.replace(/\D/g, "");
+          const loyaltyRef = doc(db, "empresas", empresaId, "fidelidade", cleanPhone);
+          const snap = await getDoc(loyaltyRef);
+          if (snap.exists()) {
+            setLoyaltyPoints(snap.data().points || 0);
+          } else {
+            setLoyaltyPoints(0);
+          }
+        }
         setStep(5);
       })
       .catch(() => {
@@ -210,7 +209,7 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     );
   }
 
-  const allPromotions = companyData.promotions || (companyData.promotionsText ? [companyData.promotionsText] : []);
+  const allPromotions = companyData.promotions || [];
 
   if (step === 5) {
     return (
@@ -224,6 +223,32 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
               <h1 className="text-3xl font-black text-primary">Agendado!</h1>
               <p className="text-muted-foreground font-medium">Seu horário foi reservado com sucesso no {companyData.name}.</p>
             </div>
+
+            {companyData.loyaltyEnabled && loyaltyPoints !== null && (
+              <div className="bg-primary/5 p-6 rounded-3xl border-2 border-primary/20 space-y-4">
+                <div className="flex items-center justify-center gap-2 text-primary font-black uppercase text-xs tracking-widest">
+                  <Gift className="w-4 h-4" /> Cartão Fidelidade
+                </div>
+                <div className="flex justify-center gap-1.5 flex-wrap">
+                  {Array.from({ length: companyData.loyaltyGoal || 10 }).map((_, i) => (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-700",
+                        i < loyaltyPoints ? "bg-primary border-primary text-white shadow-md scale-110" : "bg-white border-border text-muted-foreground/30"
+                      )}
+                    >
+                      {i < loyaltyPoints ? <CheckCircle2 className="w-5 h-5" /> : <span className="text-[10px] font-black">{i + 1}</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Você tem {loyaltyPoints} de {companyData.loyaltyGoal} pontos</p>
+                  <p className="text-xs font-bold text-primary">Faltam {Math.max(0, (companyData.loyaltyGoal || 10) - loyaltyPoints)} visitas para ganhar: <span className="underline">{companyData.loyaltyReward}</span>!</p>
+                </div>
+              </div>
+            )}
+
             <div className="bg-secondary/30 p-6 rounded-2xl text-left space-y-3 border-2 border-border/50">
               <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Resumo do Atendimento</p>
               <p className="font-bold flex items-center gap-2"><Scissors className="w-4 h-4 text-primary" /> {selectedServices.map(s => s.name).join(" + ")}</p>
@@ -238,12 +263,10 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
               </div>
             </div>
             <div className="grid gap-3">
-              {companyData.notifyInstant && (
-                <Button className="w-full h-14 rounded-2xl text-lg font-black bg-green-600 hover:bg-green-700 gap-2" onClick={handleNotifyWhatsapp}>
-                  <MessageSquare className="w-5 h-5" />
-                  Confirmar no WhatsApp
-                </Button>
-              )}
+              <Button className="w-full h-14 rounded-2xl text-lg font-black bg-green-600 hover:bg-green-700 gap-2" onClick={handleNotifyWhatsapp}>
+                <MessageSquare className="w-5 h-5" />
+                Confirmar no WhatsApp
+              </Button>
               <Button variant="ghost" className="w-full h-14 rounded-2xl text-lg font-black" onClick={() => window.location.reload()}>
                 Fazer Novo Agendamento
               </Button>
@@ -373,7 +396,6 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
                   </CardContent>
                 </Card>
               ))}
-              {activeColabs?.length === 0 && <p className="text-center py-10 text-muted-foreground font-bold">Nenhum profissional disponível para esses serviços hoje.</p>}
             </div>
           </div>
         )}
@@ -443,27 +465,11 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
             <div className="space-y-6 bg-white p-8 rounded-3xl border-2 shadow-sm">
               <div className="space-y-2">
                 <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Seu Nome Completo</Label>
-                <Input 
-                  placeholder="Ex: Maria Santos" 
-                  value={clientName} 
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary"
-                />
+                <Input placeholder="Ex: Maria Santos" value={clientName} onChange={(e) => setClientName(e.target.value)} className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary" />
               </div>
               <div className="space-y-2">
                 <Label className="font-black text-[10px] uppercase tracking-widest text-muted-foreground ml-2">Seu WhatsApp</Label>
-                <Input 
-                  placeholder="(00) 00000-0000" 
-                  value={clientPhone} 
-                  onChange={(e) => setClientPhone(maskPhone(e.target.value))}
-                  className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary"
-                />
-              </div>
-              <div className="p-4 bg-secondary/10 rounded-2xl flex gap-3 items-start">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
-                  Ao confirmar, seu horário será bloqueado na nossa agenda. Respeite o tempo do profissional e avise com antecedência caso precise cancelar.
-                </p>
+                <Input placeholder="(00) 00000-0000" value={clientPhone} onChange={(e) => setClientPhone(maskPhone(e.target.value))} className="h-16 border-2 rounded-2xl px-6 font-bold text-lg focus:ring-primary" />
               </div>
             </div>
           </div>
@@ -475,43 +481,13 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
           <div className="flex flex-col">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Investimento</p>
             <div className="flex items-center gap-2">
-              <p className={cn(
-                "font-black text-2xl transition-all",
-                appliedPromotion ? "text-primary scale-110" : "text-foreground"
-              )}>
-                R$ {totalPrice.toFixed(2)}
-              </p>
-              {appliedPromotion && (
-                <span className="text-xs line-through text-muted-foreground decoration-destructive decoration-2">
-                  R$ {rawTotalPrice.toFixed(2)}
-                </span>
-              )}
+              <p className={cn("font-black text-2xl transition-all", appliedPromotion ? "text-primary scale-110" : "text-foreground")}>R$ {totalPrice.toFixed(2)}</p>
+              {appliedPromotion && <span className="text-xs line-through text-muted-foreground decoration-destructive decoration-2">R$ {rawTotalPrice.toFixed(2)}</span>}
             </div>
-            {appliedPromotion && (
-              <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase animate-pulse">
-                <Zap className="w-3 h-3" /> {appliedPromotion.description} aplicada!
-              </div>
-            )}
+            {appliedPromotion && <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase animate-pulse"><Zap className="w-3 h-3" /> {appliedPromotion.description} aplicada!</div>}
           </div>
-          {step === 1 && (
-            <Button 
-              disabled={selectedServiceIds.length === 0} 
-              onClick={() => setStep(2)}
-              className="h-14 px-8 rounded-2xl font-black gap-2 shadow-lg hover:scale-[1.05] transition-transform"
-            >
-              Continuar <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
-          {step === 4 && (
-            <Button 
-              disabled={!clientName || !clientPhone || isSubmitting} 
-              onClick={handleConfirm}
-              className="h-14 px-10 rounded-2xl font-black gap-2 shadow-lg hover:scale-[1.05] transition-transform bg-primary"
-            >
-              {isSubmitting ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-              Finalizar Agendamento
-            </Button>
-          )}
+          {step === 1 && <Button disabled={selectedServiceIds.length === 0} onClick={() => setStep(2)} className="h-14 px-8 rounded-2xl font-black gap-2 shadow-lg hover:scale-[1.05] transition-transform">Continuar <ArrowRight className="w-4 h-4" /></Button>}
+          {step === 4 && <Button disabled={!clientName || !clientPhone || isSubmitting} onClick={handleConfirm} className="h-14 px-10 rounded-2xl font-black gap-2 shadow-lg hover:scale-[1.05] transition-transform bg-primary">{isSubmitting ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}Finalizar Agendamento</Button>}
         </div>
       </footer>
     </div>

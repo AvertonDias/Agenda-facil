@@ -27,7 +27,7 @@
         "address": { "type": "string" },
         "plan": { "type": "string" },
         "workingHours": { "type": "object", "description": "Mapa de horários por dia da semana" },
-        "promotionsText": { "type": "string", "description": "Texto de destaque para promoções" },
+        "promotions": { "type": "array", "items": { "type": "string" } },
         "automaticPromotions": { 
           "type": "array", 
           "items": { 
@@ -41,6 +41,10 @@
             }
           }
         },
+        "loyaltyEnabled": { "type": "boolean" },
+        "loyaltyPointsPerVisit": { "type": "number" },
+        "loyaltyGoal": { "type": "number" },
+        "loyaltyReward": { "type": "string" },
         "minLeadTimeHours": { "type": "number" },
         "slotIntervalMinutes": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
@@ -89,6 +93,17 @@
         "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado", "concluido", "nao_compareceu"] }
       },
       "required": ["id", "clientName", "serviceIds", "employeeId", "startTime", "endTime", "timezone"]
+    },
+    "LoyaltyRecord": {
+      "title": "LoyaltyRecord",
+      "type": "object",
+      "description": "Registro de pontos de fidelidade por cliente.",
+      "properties": {
+        "phone": { "type": "string" },
+        "points": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["phone", "points"]
     }
   },
   "auth": {
@@ -114,6 +129,10 @@
     "/empresas/{empresaId}/agendamentos/{agendamentoId}": {
       "schema": "Appointment",
       "description": "Registro de agendamentos"
+    },
+    "/empresas/{empresaId}/fidelidade/{phone}": {
+      "schema": "LoyaltyRecord",
+      "description": "Pontos de fidelidade por telefone"
     }
   }
 }

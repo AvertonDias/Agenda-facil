@@ -10,13 +10,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Building2, Bell, Smartphone, Loader2, Clock, Tag, CalendarDays, AlertCircle, Settings, Plus, Trash2, Zap, X } from "lucide-react";
+import { 
+  Save, 
+  Building2, 
+  Bell, 
+  Loader2, 
+  Clock, 
+  Tag, 
+  CalendarDays, 
+  Settings, 
+  Plus, 
+  Trash2, 
+  Zap, 
+  X,
+  Gift,
+  Trophy
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
 import { cn, maskPhone } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const DAYS_OF_WEEK = [
   { id: "monday", label: "Segunda-feira" },
@@ -57,6 +71,12 @@ export default function AdminSettings() {
   const [promotions, setPromotions] = useState<string[]>([]);
   const [automaticPromotions, setAutomaticPromotions] = useState<any[]>([]);
 
+  // Loyalty states
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [loyaltyPointsPerVisit, setLoyaltyPointsPerVisit] = useState("1");
+  const [loyaltyGoal, setLoyaltyGoal] = useState("10");
+  const [loyaltyReward, setLoyaltyReward] = useState("Corte de Cabelo Grátis");
+
   const companyRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "empresas", user.uid);
@@ -83,16 +103,14 @@ export default function AdminSettings() {
         setWorkingHours(companyData.workingHours);
       }
       
-      // Migração de campo único para lista se necessário
-      if (Array.isArray(companyData.promotions)) {
-        setPromotions(companyData.promotions);
-      } else if (companyData.promotionsText) {
-        setPromotions([companyData.promotionsText]);
-      } else {
-        setPromotions([]);
-      }
-      
+      setPromotions(Array.isArray(companyData.promotions) ? companyData.promotions : []);
       setAutomaticPromotions(companyData.automaticPromotions || []);
+
+      // Loyalty data
+      setLoyaltyEnabled(companyData.loyaltyEnabled ?? false);
+      setLoyaltyPointsPerVisit(String(companyData.loyaltyPointsPerVisit ?? "1"));
+      setLoyaltyGoal(String(companyData.loyaltyGoal ?? "10"));
+      setLoyaltyReward(companyData.loyaltyReward || "Corte de Cabelo Grátis");
     }
   }, [companyData]);
 
@@ -110,8 +128,12 @@ export default function AdminSettings() {
       minLeadTimeHours: parseInt(minLeadTimeHours) || 0,
       slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
       workingHours,
-      promotions, // Salva como array
+      promotions,
       automaticPromotions,
+      loyaltyEnabled,
+      loyaltyPointsPerVisit: parseInt(loyaltyPointsPerVisit) || 1,
+      loyaltyGoal: parseInt(loyaltyGoal) || 10,
+      loyaltyReward,
       ownerId: user.uid,
       updatedAt: serverTimestamp(),
     };
@@ -122,7 +144,7 @@ export default function AdminSettings() {
       setLoading(false);
       toast({
         title: "Configurações atualizadas!",
-        description: "Suas preferências foram salvas e aplicadas em tempo real.",
+        description: "Suas preferências foram salvas com sucesso.",
       });
     }, 500);
   };
@@ -134,19 +156,13 @@ export default function AdminSettings() {
     }));
   };
 
-  const addBanner = () => {
-    setPromotions(prev => [...prev, ""]);
-  };
-
+  const addBanner = () => setPromotions(prev => [...prev, ""]);
   const updateBanner = (index: number, value: string) => {
     const newBanners = [...promotions];
     newBanners[index] = value;
     setPromotions(newBanners);
   };
-
-  const removeBanner = (index: number) => {
-    setPromotions(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeBanner = (index: number) => setPromotions(prev => prev.filter((_, i) => i !== index));
 
   const addPromotion = () => {
     setAutomaticPromotions(prev => [
@@ -160,11 +176,7 @@ export default function AdminSettings() {
       }
     ]);
   };
-
-  const removePromotion = (id: string) => {
-    setAutomaticPromotions(prev => prev.filter(p => p.id !== id));
-  };
-
+  const removePromotion = (id: string) => setAutomaticPromotions(prev => prev.filter(p => p.id !== id));
   const updatePromotion = (id: string, field: string, value: any) => {
     setAutomaticPromotions(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
@@ -172,11 +184,9 @@ export default function AdminSettings() {
   const togglePromoService = (promoId: string, serviceId: string) => {
     const promo = automaticPromotions.find(p => p.id === promoId);
     if (!promo) return;
-    
     const newServiceIds = promo.serviceIds.includes(serviceId)
       ? promo.serviceIds.filter((id: string) => id !== serviceId)
       : [...promo.serviceIds, serviceId];
-      
     updatePromotion(promoId, "serviceIds", newServiceIds);
   };
 
@@ -220,6 +230,9 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="promocoes" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <Tag className="w-4 h-4" /> Promoções
+          </TabsTrigger>
+          <TabsTrigger value="fidelidade" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+            <Gift className="w-4 h-4" /> Fidelidade
           </TabsTrigger>
         </TabsList>
 
@@ -271,7 +284,6 @@ export default function AdminSettings() {
                       {day.label}
                     </Label>
                   </div>
-                  
                   {!workingHours[day.id]?.closed ? (
                     <div className="flex items-center gap-3">
                       <Input type="time" value={workingHours[day.id]?.open} onChange={(e) => updateDay(day.id, "open", e.target.value)} className="w-[120px] h-12 border-2 rounded-xl font-black text-center" />
@@ -362,12 +374,7 @@ export default function AdminSettings() {
                       placeholder="Ex: 20% de desconto em Corte Masculino às terças-feiras! ✂️"
                       className="min-h-[100px] text-lg font-bold p-6 border-2 rounded-2xl flex-1"
                     />
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => removeBanner(index)}
-                      className="text-destructive h-10 w-10 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => removeBanner(index)} className="text-destructive h-10 w-10 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <X className="w-5 h-5" />
                     </Button>
                   </div>
@@ -397,34 +404,20 @@ export default function AdminSettings() {
                     <p className="text-muted-foreground font-bold">Nenhuma promoção automática configurada.</p>
                   </div>
                 )}
-                
                 {automaticPromotions.map((promo) => (
                   <div key={promo.id} className="p-6 border-2 rounded-3xl bg-white space-y-4 relative group hover:border-primary/50 transition-all">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute top-4 right-4 text-destructive opacity-0 group-hover:opacity-100" 
-                      onClick={() => removePromotion(promo.id)}
-                    >
+                    <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-destructive opacity-0 group-hover:opacity-100" onClick={() => removePromotion(promo.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Descrição / Nome da Promoção</Label>
-                        <Input 
-                          value={promo.description} 
-                          onChange={(e) => updatePromotion(promo.id, "description", e.target.value)}
-                          placeholder="Ex: Combo Quarta Maluca"
-                          className="h-12 border-2 rounded-xl font-bold"
-                        />
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Descrição da Promoção</Label>
+                        <Input value={promo.description} onChange={(e) => updatePromotion(promo.id, "description", e.target.value)} placeholder="Ex: Combo Quarta Maluca" className="h-12 border-2 rounded-xl font-bold" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Dia da Semana</Label>
                         <Select value={promo.dayOfWeek} onValueChange={(v) => updatePromotion(promo.id, "dayOfWeek", v)}>
-                          <SelectTrigger className="h-12 border-2 rounded-xl font-bold">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-12 border-2 rounded-xl font-bold"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="any">Qualquer dia</SelectItem>
                             {DAYS_OF_WEEK.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
@@ -432,34 +425,19 @@ export default function AdminSettings() {
                         </Select>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Serviços do Combo (Obrigatórios)</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Serviços do Combo</Label>
                         <div className="flex flex-wrap gap-2 p-3 border-2 rounded-xl bg-secondary/5 max-h-[100px] overflow-y-auto">
                           {services?.map(s => (
-                            <div 
-                              key={s.id} 
-                              className={cn(
-                                "px-3 py-1 rounded-full border-2 text-[10px] font-bold cursor-pointer transition-all",
-                                promo.serviceIds.includes(s.id) ? "bg-primary border-primary text-white" : "bg-white border-border"
-                              )}
-                              onClick={() => togglePromoService(promo.id, s.id)}
-                            >
-                              {s.name}
-                            </div>
+                            <div key={s.id} className={cn("px-3 py-1 rounded-full border-2 text-[10px] font-bold cursor-pointer transition-all", promo.serviceIds.includes(s.id) ? "bg-primary border-primary text-white" : "bg-white border-border")} onClick={() => togglePromoService(promo.id, s.id)}>{s.name}</div>
                           ))}
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Desconto (%)</Label>
                         <div className="flex items-center gap-4">
-                          <Input 
-                            type="number" 
-                            value={promo.discountPercentage} 
-                            onChange={(e) => updatePromotion(promo.id, "discountPercentage", parseInt(e.target.value))}
-                            className="h-12 border-2 rounded-xl font-bold w-24"
-                          />
+                          <Input type="number" value={promo.discountPercentage} onChange={(e) => updatePromotion(promo.id, "discountPercentage", parseInt(e.target.value))} className="h-12 border-2 rounded-xl font-bold w-24" />
                           <span className="text-xl font-black text-primary">% OFF</span>
                         </div>
                       </div>
@@ -469,6 +447,71 @@ export default function AdminSettings() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="fidelidade">
+          <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-primary" />
+                Programa de Fidelidade
+              </CardTitle>
+              <CardDescription>Crie um cartão fidelidade digital para seus clientes recorrentes.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 space-y-8">
+              <div className="flex items-center justify-between p-6 bg-secondary/5 rounded-3xl border-2 border-dashed">
+                <div className="space-y-0.5">
+                  <Label className="text-lg font-black uppercase tracking-tight">Ativar Programa de Fidelidade</Label>
+                  <p className="text-sm text-muted-foreground">Permite que clientes acumulem pontos a cada visita.</p>
+                </div>
+                <Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} />
+              </div>
+
+              {loyaltyEnabled && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pontos por Visita</Label>
+                    <Input 
+                      type="number" 
+                      value={loyaltyPointsPerVisit} 
+                      onChange={(e) => setLoyaltyPointsPerVisit(e.target.value)}
+                      className="h-14 border-2 rounded-2xl font-black text-xl text-center"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Objetivo (Pontos)</Label>
+                    <Input 
+                      type="number" 
+                      value={loyaltyGoal} 
+                      onChange={(e) => setLoyaltyGoal(e.target.value)}
+                      className="h-14 border-2 rounded-2xl font-black text-xl text-center"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recompensa</Label>
+                    <Input 
+                      value={loyaltyReward} 
+                      onChange={(e) => setLoyaltyReward(e.target.value)}
+                      placeholder="Ex: Corte Grátis"
+                      className="h-14 border-2 rounded-2xl font-bold"
+                    />
+                  </div>
+                  <div className="md:col-span-3 p-6 bg-primary/5 rounded-3xl border-2 border-primary/20 flex items-center gap-4">
+                    <div className="p-3 bg-primary text-white rounded-2xl shadow-lg">
+                      <Trophy className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-black uppercase text-primary tracking-widest">Exemplo de Regra</p>
+                      <p className="text-lg font-bold leading-tight">
+                        Ao completar <span className="text-primary font-black underline">{loyaltyGoal} pontos</span>, o cliente ganha: <span className="text-primary font-black">{loyaltyReward}</span>.
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-medium">Os pontos são creditados automaticamente quando você marcar o agendamento como "Concluído" na agenda.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

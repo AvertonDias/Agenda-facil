@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -17,13 +18,21 @@ import {
   Trash2,
   Edit2,
   Calendar as CalendarIcon,
-  X,
-  AlertCircle,
   MessageSquare
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { 
+  useUser, 
+  useFirestore, 
+  useCollection, 
+  useDoc, 
+  useMemoFirebase, 
+  addDocumentNonBlocking, 
+  updateDocumentNonBlocking, 
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking
+} from "@/firebase";
+import { collection, doc, getDoc } from "firebase/firestore";
 import { format, isSameDay, addMinutes, isBefore, addHours, parseISO } from "date-fns";
 import { cn, maskPhone } from "@/lib/utils";
 import {
@@ -63,7 +72,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -186,8 +194,8 @@ export default function AdminAgenda() {
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
-  const handleUpdateStatus = (appointmentId: string, newStatus: string) => {
-    if (!user) return;
+  const handleUpdateStatus = async (appointmentId: string, newStatus: string) => {
+    if (!user || !db) return;
     const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
     updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
     toast({ title: "Status atualizado!" });
@@ -195,6 +203,34 @@ export default function AdminAgenda() {
     if (newStatus === 'confirmado') {
       setLastConfirmedAptId(appointmentId);
       setShowConfirmMessageAlert(true);
+    }
+
+    // Loyalty Logic: Give points if completed
+    if (newStatus === 'concluido' && companyData?.loyaltyEnabled) {
+      const apt = allAppointments?.find(a => a.id === appointmentId);
+      const cleanPhone = apt?.clientPhone?.replace(/\D/g, "");
+      
+      if (cleanPhone) {
+        const loyaltyRef = doc(db, "empresas", user.uid, "fidelidade", cleanPhone);
+        const loyaltySnap = await getDoc(loyaltyRef);
+        
+        let currentPoints = 0;
+        if (loyaltySnap.exists()) {
+          currentPoints = loyaltySnap.data().points || 0;
+        }
+
+        const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
+        setDocumentNonBlocking(loyaltyRef, {
+          phone: cleanPhone,
+          points: currentPoints + pointsToAdd,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        toast({ 
+          title: "Pontos de Fidelidade!", 
+          description: `+${pointsToAdd} pontos creditados para o cliente.` 
+        });
+      }
     }
   };
 
@@ -238,6 +274,11 @@ export default function AdminAgenda() {
         setLastConfirmedAptId(editingAppointmentId);
         setShowConfirmMessageAlert(true);
       }
+
+      // Logic for points if completed in edit
+      if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled) {
+        handleUpdateStatus(editingAppointmentId, 'concluido');
+      }
       
       resetForm();
       setIsSubmitting(false);
@@ -251,6 +292,10 @@ export default function AdminAgenda() {
           if (selectedStatus === 'confirmado' && docRef?.id) {
             setLastConfirmedAptId(docRef.id);
             setShowConfirmMessageAlert(true);
+          }
+
+          if (selectedStatus === 'concluido' && companyData?.loyaltyEnabled && docRef?.id) {
+            handleUpdateStatus(docRef.id, 'concluido');
           }
           
           resetForm();
@@ -537,7 +582,7 @@ export default function AdminAgenda() {
                             </DropdownMenu>
                           </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1.5 font-bold">
-                            <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone || "Sem tel"}
+                            <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone ? maskPhone(apt.clientPhone) : "Sem tel"}
                           </p>
                         </div>
                         

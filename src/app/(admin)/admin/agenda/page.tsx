@@ -222,13 +222,14 @@ export default function AdminAgenda() {
         const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
         setDocumentNonBlocking(loyaltyRef, {
           phone: cleanPhone,
+          clientName: apt?.clientName || "Cliente",
           points: currentPoints + pointsToAdd,
           updatedAt: new Date().toISOString()
         }, { merge: true });
 
         toast({ 
           title: "Pontos de Fidelidade!", 
-          description: `+${pointsToAdd} pontos creditados para o cliente.` 
+          description: `+${pointsToAdd} pontos creditados para ${apt?.clientName}.` 
         });
       }
     }
@@ -528,7 +529,7 @@ export default function AdminAgenda() {
         </CardHeader>
         <CardContent className="p-2 flex justify-center">
           <Calendar mode="single" selected={date} onSelect={setDate} locale={ptBR} className="w-full" />
-        </CardContent>
+        </CardHeader>
       </Card>
 
       <Card className="border-none shadow-xl flex flex-col bg-white rounded-2xl overflow-hidden min-h-[400px]">

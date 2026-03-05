@@ -541,7 +541,7 @@ export default function AdminSettings() {
                     <Table>
                       <TableHeader className="bg-secondary/10">
                         <TableRow className="border-none">
-                          <TableHead className="font-black uppercase text-[10px] h-12">Telefone do Cliente</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] h-12">Cliente</TableHead>
                           <TableHead className="font-black uppercase text-[10px] text-center h-12">Pontos</TableHead>
                           <TableHead className="font-black uppercase text-[10px] text-right h-12 pr-6">Progresso</TableHead>
                         </TableRow>
@@ -565,7 +565,12 @@ export default function AdminSettings() {
                             const progress = Math.min(100, (record.points / goal) * 100);
                             return (
                               <TableRow key={record.id} className="border-b-2 border-secondary/20 hover:bg-secondary/5 transition-colors">
-                                <TableCell className="font-bold py-4">{maskPhone(record.phone)}</TableCell>
+                                <TableCell className="py-4">
+                                  <div className="flex flex-col">
+                                    <span className="font-black text-sm">{record.clientName || "Cliente"}</span>
+                                    <span className="text-[10px] text-muted-foreground font-bold">{maskPhone(record.phone)}</span>
+                                  </div>
+                                </TableCell>
                                 <TableCell className="text-center font-black text-primary text-lg">{record.points}</TableCell>
                                 <TableCell className="text-right pr-6">
                                   <div className="flex flex-col items-end gap-1.5">

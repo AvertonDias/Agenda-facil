@@ -100,6 +100,7 @@
       "description": "Registro de pontos de fidelidade por cliente.",
       "properties": {
         "phone": { "type": "string" },
+        "clientName": { "type": "string" },
         "points": { "type": "number" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

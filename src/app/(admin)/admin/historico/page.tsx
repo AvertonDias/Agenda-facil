@@ -59,7 +59,7 @@ export default function AdminHistory() {
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);
 
-  // Filtra agendamentos concluídos
+  // Filtra agendamentos concluídos para a lista principal
   const completedAppointments = useMemo(() => {
     if (!allAppointments) return [];
     return allAppointments
@@ -72,23 +72,34 @@ export default function AdminHistory() {
   }, [allAppointments, searchTerm]);
 
   // Ranking de clientes baseado em atendimentos concluídos
+  // Agrupado por telefone, exibindo o nome do agendamento mais recente
   const clientRanking = useMemo(() => {
     if (!allAppointments) return [];
+    
+    // 1. Filtrar concluídos e ordenar do mais recente para o mais antigo para pegar o último nome usado
+    const concluidosOrdenados = [...allAppointments]
+      .filter(apt => apt.status === 'concluido')
+      .sort((a, b) => (b.startTime || "").localeCompare(a.startTime || ""));
+
     const counts: Record<string, { name: string, phone: string, count: number }> = {};
     
-    allAppointments
-      .filter(apt => apt.status === 'concluido')
-      .forEach(apt => {
-        const key = apt.clientPhone?.replace(/\D/g, '') || apt.clientName;
-        if (!counts[key]) {
-          counts[key] = { 
-            name: apt.clientName, 
-            phone: apt.clientPhone || "", 
-            count: 0 
-          };
-        }
-        counts[key].count++;
-      });
+    concluidosOrdenados.forEach(apt => {
+      // Chave baseada apenas no telefone (limpo)
+      // Se não tiver telefone, usa o nome como chave única (para não agrupar todos os 'sem tel' juntos)
+      const cleanPhone = apt.clientPhone?.replace(/\D/g, '') || "";
+      const key = cleanPhone !== "" ? cleanPhone : `no-phone-${apt.clientName}`;
+      
+      if (!counts[key]) {
+        // Como o array está ordenado do mais recente para o mais antigo,
+        // a primeira vez que encontramos a chave, pegamos o nome (o último usado).
+        counts[key] = { 
+          name: apt.clientName, 
+          phone: apt.clientPhone || "", 
+          count: 0 
+        };
+      }
+      counts[key].count++;
+    });
 
     return Object.values(counts)
       .sort((a, b) => b.count - a.count)
@@ -142,7 +153,7 @@ export default function AdminHistory() {
                       </div>
                       <div className="flex-1">
                         <p className="font-bold text-sm leading-none mb-1">{client.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-bold">{maskPhone(client.phone)}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold">{client.phone ? maskPhone(client.phone) : "Sem telefone"}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-black text-primary">{client.count}</p>

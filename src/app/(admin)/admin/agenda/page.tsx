@@ -32,7 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/dialog";
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -151,7 +151,6 @@ export default function AdminAgenda() {
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
     
-    // Fim da duração total
     const slotEnd = addMinutes(slotStart, totalDuration || slotInterval);
 
     return allAppointments.some(apt => {
@@ -159,7 +158,6 @@ export default function AdminAgenda() {
       const aptStart = parseISO(apt.startTime);
       const aptEnd = parseISO(apt.endTime);
       
-      // Checa sobreposição
       return (slotStart < aptEnd && slotEnd > aptStart);
     });
   };

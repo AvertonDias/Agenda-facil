@@ -12,7 +12,6 @@ import {
   Scissors, 
   Loader2, 
   CalendarDays, 
-  ChevronRight,
   MoreVertical,
   Phone,
   Check,
@@ -72,7 +71,7 @@ export default function AdminAgenda() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Queries protegidas e memoizadas - Sem filtros para depurar permissão
+  // Queries simplificadas para evitar erros de permissão por falta de índice
   const servicesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid || isUserLoading) return null;
     return collection(db, "empresas", user.uid, "servicos");
@@ -92,7 +91,7 @@ export default function AdminAgenda() {
   const { data: collaborators } = useCollection(collaboratorsQuery);
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
 
-  // Filtragem manual por data para evitar necessidade de índices durante a depuração
+  // Filtragem manual na memória para garantir funcionamento sem índices complexos
   const appointments = allAppointments?.filter(apt => {
     const targetDate = format(date || new Date(), 'yyyy-MM-dd');
     return apt.date === targetDate;
@@ -373,195 +372,181 @@ export default function AdminAgenda() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col gap-8 flex-1">
-        <div className="flex flex-col gap-6">
-          <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl">
-            <CardHeader className="pb-4 border-b bg-secondary/5 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4" />
-                Calendário
+      <div className="flex flex-col gap-6 flex-1">
+        <Card className="border-none shadow-md overflow-hidden bg-white rounded-xl">
+          <CardHeader className="pb-4 border-b bg-secondary/5 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4" />
+              Calendário
+            </CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setDate(new Date())}
+              className="h-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
+            >
+              Hoje
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0 flex justify-center bg-card">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              locale={ptBR}
+              className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-full"
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm bg-primary/5 rounded-xl border-l-4 border-l-primary">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-black uppercase tracking-widest text-primary/70">Resumo de Atendimentos</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Total do Dia</span>
+              <span className="text-3xl font-black">{appointments?.length || 0}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Confirmados</span>
+              <span className="text-3xl font-black text-green-600">
+                {appointments?.filter(a => a.status === 'confirmado').length || 0}
+              </span>
+            </div>
+            <div className="col-span-2 pt-4 border-t border-primary/10">
+               <p className="text-sm font-black text-primary flex items-center gap-2 uppercase tracking-tight">
+                 <Clock className="w-4 h-4" />
+                 {date ? format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }) : ''}
+               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm flex flex-col bg-white rounded-xl overflow-hidden">
+          <CardHeader className="border-b bg-card/50 p-6">
+            <div>
+              <CardTitle className="text-xl font-black tracking-tight">
+                Linha do Tempo
               </CardTitle>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setDate(new Date())}
-                className="h-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
-              >
-                Hoje
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                locale={ptBR}
-                className="w-full flex justify-center p-6"
-                classNames={{
-                  day_selected: "bg-primary text-white hover:bg-primary/90 rounded-xl font-black",
-                  day_today: "bg-accent/10 text-accent font-black rounded-xl border border-accent/20",
-                  day: "h-12 w-12 p-0 font-medium aria-selected:opacity-100 rounded-xl transition-all hover:bg-secondary/50",
-                  head_cell: "text-muted-foreground rounded-md w-12 font-black text-[0.7rem] uppercase py-4 opacity-50",
-                  nav_button: "hover:bg-primary/10 hover:text-primary transition-colors rounded-lg",
-                  caption_label: "text-sm font-black uppercase tracking-widest text-foreground/80",
-                }}
-              />
-            </CardContent>
-          </Card>
+              <p className="text-xs text-muted-foreground font-medium">Lista cronológica de compromissos</p>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="flex-1 p-0 overflow-auto min-h-[400px]">
+            {isInitialLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground animate-pulse font-medium">Buscando horários...</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/50">
+                {appointments && appointments.length > 0 ? (
+                  [...appointments]
+                    .sort((a, b) => a.time.localeCompare(b.time))
+                    .map((apt) => {
+                      const service = services?.find(s => s.id === apt.serviceId);
+                      const employee = collaborators?.find(e => e.id === apt.employeeId);
+                      const isConfirmed = apt.status === 'confirmado';
 
-          <Card className="border-none shadow-sm bg-primary/5 rounded-xl border-l-4 border-l-primary">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-primary/70">Resumo de Atendimentos</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Total do Dia</span>
-                <span className="text-3xl font-black">{appointments?.length || 0}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Confirmados</span>
-                <span className="text-3xl font-black text-green-600">
-                  {appointments?.filter(a => a.status === 'confirmado').length || 0}
-                </span>
-              </div>
-              <div className="col-span-2 pt-4 border-t border-primary/10">
-                 <p className="text-sm font-black text-primary flex items-center gap-2 uppercase tracking-tight">
-                   <Clock className="w-4 h-4" />
-                   {date ? format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }) : ''}
-                 </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                      return (
+                        <div 
+                          key={apt.id} 
+                          className="group flex gap-4 p-5 hover:bg-secondary/20 transition-all relative"
+                        >
+                          <div className="flex flex-col items-center justify-start pt-1 min-w-[65px]">
+                            <span className="text-lg font-black text-foreground">{apt.time}</span>
+                            <div className={cn(
+                              "w-1 h-full mt-2 rounded-full",
+                              isConfirmed ? "bg-green-500" : "bg-yellow-500"
+                            )} />
+                          </div>
 
-        <div className="w-full">
-          <Card className="border-none shadow-sm h-full flex flex-col bg-white rounded-xl overflow-hidden">
-            <CardHeader className="border-b bg-card/50 sticky top-0 z-10 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-black tracking-tight">
-                    Linha do Tempo
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground font-medium">Lista cronológica de compromissos</p>
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="flex-1 p-0 overflow-auto max-h-[800px]">
-              {isInitialLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                  <p className="text-sm text-muted-foreground animate-pulse font-medium">Buscando horários...</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border/50">
-                  {appointments && appointments.length > 0 ? (
-                    [...appointments]
-                      .sort((a, b) => a.time.localeCompare(b.time))
-                      .map((apt) => {
-                        const service = services?.find(s => s.id === apt.serviceId);
-                        const employee = collaborators?.find(e => e.id === apt.employeeId);
-                        const isConfirmed = apt.status === 'confirmado';
-
-                        return (
-                          <div 
-                            key={apt.id} 
-                            className="group flex gap-4 p-5 hover:bg-secondary/20 transition-all relative"
-                          >
-                            <div className="flex flex-col items-center justify-start pt-1 min-w-[65px]">
-                              <span className="text-lg font-black text-foreground">{apt.time}</span>
-                              <div className={cn(
-                                "w-1 h-full mt-2 rounded-full",
-                                isConfirmed ? "bg-green-500" : "bg-yellow-500"
-                              )} />
+                          <div className="flex-1 space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="text-lg font-black leading-none tracking-tight">{apt.clientName}</h4>
+                                <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5 font-bold">
+                                  <Phone className="w-3.5 h-3.5 text-primary" />
+                                  {apt.clientPhone || "Sem telefone"}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "text-[10px] px-2.5 py-1 rounded-full uppercase font-black tracking-tighter",
+                                  isConfirmed ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                                )}>
+                                  {apt.status || 'pendente'}
+                                </span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary border transition-colors">
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="font-bold">
+                                    <DropdownMenuItem 
+                                      className="gap-2"
+                                      onSelect={(e) => {
+                                        e.preventDefault();
+                                        handleOpenEditDialog(apt);
+                                      }}
+                                    >
+                                      <Edit2 className="w-4 h-4" /> Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      className="gap-2 text-destructive"
+                                      onSelect={() => handleDeleteAppointment(apt.id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" /> Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
 
-                            <div className="flex-1 space-y-3">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h4 className="text-lg font-black leading-none tracking-tight">{apt.clientName}</h4>
-                                  <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5 font-bold">
-                                    <Phone className="w-3.5 h-3.5 text-primary" />
-                                    {apt.clientPhone || "Sem telefone"}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={cn(
-                                    "text-[10px] px-2.5 py-1 rounded-full uppercase font-black tracking-tighter",
-                                    isConfirmed ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                                  )}>
-                                    {apt.status || 'pendente'}
-                                  </span>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary border transition-colors">
-                                        <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="font-bold">
-                                      <DropdownMenuItem 
-                                        className="gap-2"
-                                        onSelect={(e) => {
-                                          e.preventDefault();
-                                          handleOpenEditDialog(apt);
-                                        }}
-                                      >
-                                        <Edit2 className="w-4 h-4" /> Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem 
-                                        className="gap-2 text-destructive"
-                                        onSelect={() => handleDeleteAppointment(apt.id)}
-                                      >
-                                        <Trash2 className="w-4 h-4" /> Excluir
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
+                                <Scissors className="w-4 h-4 text-primary" />
+                                <div className="flex flex-col">
+                                  <span className="truncate font-black text-foreground leading-tight text-xs uppercase tracking-tight">{service?.name || 'Serviço'}</span>
+                                  <span className="text-[10px] font-bold opacity-70">R$ {service?.basePrice ? service.basePrice.toFixed(2) : '--'}</span>
                                 </div>
                               </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
-                                  <Scissors className="w-4 h-4 text-primary" />
-                                  <div className="flex flex-col">
-                                    <span className="truncate font-black text-foreground leading-tight text-xs uppercase tracking-tight">{service?.name || 'Serviço'}</span>
-                                    <span className="text-[10px] font-bold opacity-70">R$ {service?.basePrice ? service.basePrice.toFixed(2) : '--'}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
-                                  <User className="w-4 h-4 text-accent" />
-                                  <div className="flex flex-col">
-                                    <span className="truncate font-black text-foreground leading-tight text-xs uppercase tracking-tight">{employee?.name || 'Profissional'}</span>
-                                    <span className="text-[10px] font-bold opacity-70">{employee?.role || '--'}</span>
-                                  </div>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background p-2 rounded-lg border border-border/40 shadow-sm">
+                                <User className="w-4 h-4 text-accent" />
+                                <div className="flex flex-col">
+                                  <span className="truncate font-black text-foreground leading-tight text-xs uppercase tracking-tight">{employee?.name || 'Profissional'}</span>
+                                  <span className="text-[10px] font-bold opacity-70">{employee?.role || '--'}</span>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        );
-                      })
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-32 text-center px-4">
-                      <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mb-6">
-                        <Clock className="w-10 h-10 text-muted-foreground/40" />
-                      </div>
-                      <h3 className="text-xl font-black tracking-tight">Agenda Livre</h3>
-                      <p className="text-muted-foreground max-w-[280px] mt-2 text-sm font-medium">
-                        Nenhum agendamento para este dia. Que tal abrir novos horários?
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-8 gap-2 border-dashed font-black px-8 uppercase tracking-widest text-xs"
-                        onClick={() => { resetForm(); setIsDialogOpen(true); }}
-                      >
-                        <Plus className="w-4 h-4" /> Novo Agendamento
-                      </Button>
+                        </div>
+                      );
+                    })
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-32 text-center px-4">
+                    <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mb-6">
+                      <Clock className="w-10 h-10 text-muted-foreground/40" />
                     </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    <h3 className="text-xl font-black tracking-tight">Agenda Livre</h3>
+                    <p className="text-muted-foreground max-w-[280px] mt-2 text-sm font-medium">
+                      Nenhum agendamento para este dia. Que tal abrir novos horários?
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-8 gap-2 border-dashed font-black px-8 uppercase tracking-widest text-xs"
+                      onClick={() => { resetForm(); setIsDialogOpen(true); }}
+                    >
+                      <Plus className="w-4 h-4" /> Novo Agendamento
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

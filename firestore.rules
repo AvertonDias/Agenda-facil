@@ -3,14 +3,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Regra para Perfis de Usuários
+    // Regra para Perfis de Usuários
     match /perfis_usuarios/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // 2. Regra para o DOCUMENTO da Empresa e suas SUBCOLEÇÕES
-    // Utilizamos o curinga recursivo {allPaths=**} para garantir que o proprietário
-    // tenha acesso total a toda a sua árvore de dados.
+    // Regra para o DOCUMENTO da Empresa e todas as suas SUBCOLEÇÕES (agendamentos, serviços, colaboradores)
+    // O uso de {allPaths=**} garante que o proprietário tenha acesso a tudo abaixo de seu ID.
     match /empresas/{empresaId} {
       allow read, write: if request.auth != null && request.auth.uid == empresaId;
       
@@ -19,7 +18,7 @@ service cloud.firestore {
       }
     }
     
-    // Bloqueio preventivo padrão para qualquer outro caminho
+    // Bloqueio preventivo padrão
     match /{document=**} {
       allow read, write: if false;
     }

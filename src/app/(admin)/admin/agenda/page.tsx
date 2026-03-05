@@ -134,7 +134,7 @@ export default function AdminAgenda() {
 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
 
-  // Filtra agendamentos do dia selecionado que NÃO estão concluídos/cancelados (opcional, ou mostra todos no dia)
+  // Filtra agendamentos do dia selecionado
   const appointments = useMemo(() => {
     if (!allAppointments || !date) return [];
     return allAppointments
@@ -208,6 +208,34 @@ export default function AdminAgenda() {
       setSelectedTime(format(start, "HH:mm"));
     }
     setTimeout(() => setIsDialogOpen(true), 200);
+  };
+
+  const handleQuickStatusUpdate = async (apt: any, newStatus: string) => {
+    if (!user) return;
+    const docRef = doc(db, "empresas", user.uid, "agendamentos", apt.id);
+    updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
+
+    if (newStatus === 'concluido' && companyData?.loyaltyEnabled) {
+      const cleanPhone = (apt.clientPhone || "").replace(/\D/g, '');
+      if (cleanPhone) {
+        const loyaltyDocRef = doc(db, "empresas", user.uid, "fidelidade", cleanPhone);
+        const loyaltySnap = await getDoc(loyaltyDocRef);
+        const currentPoints = loyaltySnap.exists() ? (loyaltySnap.data().points || 0) : 0;
+        const pointsToAdd = companyData.loyaltyPointsPerVisit || 1;
+        
+        setDocumentNonBlocking(loyaltyDocRef, {
+          phone: cleanPhone,
+          clientName: apt.clientName,
+          points: currentPoints + pointsToAdd,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+    }
+
+    toast({ 
+      title: "Status atualizado!",
+      description: newStatus === 'concluido' ? "O atendimento foi finalizado e os pontos de fidelidade foram creditados." : `Status alterado para ${statusConfig[newStatus as keyof typeof statusConfig].label}.`
+    });
   };
 
   const handleSelectContact = (contact: any) => {
@@ -440,7 +468,14 @@ export default function AdminAgenda() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
+                  {selectedServiceIds.length > 0 && filteredCollaborators.length === 0 && (
+                    <span className="text-[8px] font-black uppercase text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-2.5 h-2.5" /> Nenhum profissional realiza todos esses serviços juntos.
+                    </span>
+                  )}
+                </div>
                 <Select 
                   onValueChange={setSelectedEmployeeId} 
                   value={selectedEmployeeId}
@@ -467,6 +502,7 @@ export default function AdminAgenda() {
                     <SelectItem value="confirmado">Confirmado</SelectItem>
                     <SelectItem value="concluido">Concluído</SelectItem>
                     <SelectItem value="cancelado">Cancelado</SelectItem>
+                    <SelectItem value="nao_compareceu">Não Compareceu</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -548,9 +584,21 @@ export default function AdminAgenda() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="text-lg font-black">{apt.clientName}</h4>
-                            <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5", currentStatus.color)}>
-                              {currentStatus.label}
-                            </Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Badge className={cn("text-[8px] h-4 font-black uppercase border-2 leading-none px-1.5 cursor-pointer hover:opacity-80 transition-opacity", currentStatus.color)}>
+                                  {currentStatus.label}
+                                </Badge>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                {Object.entries(statusConfig).map(([key, config]) => (
+                                  <DropdownMenuItem key={key} onClick={() => handleQuickStatusUpdate(apt, key)} className="text-[10px] font-black uppercase">
+                                    <div className={cn("w-2 h-2 rounded-full mr-2", config.color.split(' ')[0])} />
+                                    {config.label}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1.5 font-bold">
                             <Phone className="w-3.5 h-3.5 text-primary" /> {apt.clientPhone ? maskPhone(apt.clientPhone) : "Sem tel"}

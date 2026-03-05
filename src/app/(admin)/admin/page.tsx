@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 const statusColors = {
   pendente: 'bg-yellow-100 text-yellow-700',
@@ -116,6 +116,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      <PWAInstallPrompt />
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Olá, {user?.displayName?.split(' ')[0] || 'Administrador'} 👋</h1>

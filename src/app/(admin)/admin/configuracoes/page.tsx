@@ -19,10 +19,18 @@ export default function AdminSettings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // States para os dados do formulário
+  // States para Perfil
   const [salonName, setSalonName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+
+  // States para Notificações
+  const [notifyInstant, setNotifyInstant] = useState(true);
+  const [notifyReminder24h, setNotifyReminder24h] = useState(true);
+
+  // States para Regras de Negócio
+  const [minLeadTimeHours, setMinLeadTimeHours] = useState("2");
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState("30");
 
   const companyRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -36,10 +44,14 @@ export default function AdminSettings() {
       setSalonName(companyData.name || "");
       setPhone(companyData.phoneNumber || "");
       setAddress(companyData.address || "");
+      setNotifyInstant(companyData.notifyInstant ?? true);
+      setNotifyReminder24h(companyData.notifyReminder24h ?? true);
+      setMinLeadTimeHours(String(companyData.minLeadTimeHours ?? "2"));
+      setSlotIntervalMinutes(String(companyData.slotIntervalMinutes ?? "30"));
     }
   }, [companyData]);
 
-  const handleSave = () => {
+  const handleSaveAll = () => {
     if (!user || !companyRef) return;
     
     setLoading(true);
@@ -48,18 +60,21 @@ export default function AdminSettings() {
       name: salonName,
       phoneNumber: phone,
       address: address,
+      notifyInstant,
+      notifyReminder24h,
+      minLeadTimeHours: parseInt(minLeadTimeHours) || 0,
+      slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
       ownerId: user.uid,
       updatedAt: serverTimestamp(),
     };
 
     setDocumentNonBlocking(companyRef, data, { merge: true });
     
-    // Pequeno delay para feedback visual
     setTimeout(() => {
       setLoading(false);
       toast({
-        title: "Configurações salvas",
-        description: "As informações da sua empresa foram atualizadas.",
+        title: "Configurações atualizadas!",
+        description: "Suas preferências foram salvas e aplicadas à agenda.",
       });
     }, 500);
   };
@@ -74,16 +89,22 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie as preferências e informações do seu estabelecimento.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Configurações</h1>
+          <p className="text-muted-foreground">Gerencie as preferências do seu estabelecimento.</p>
+        </div>
+        <Button onClick={handleSaveAll} className="gap-2 shadow-lg h-12 px-8" disabled={loading}>
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Salvar Tudo
+        </Button>
       </div>
 
       <Tabs defaultValue="perfil" className="space-y-6">
         <TabsList className="bg-background border w-full sm:w-auto justify-start h-auto p-1 flex-wrap">
           <TabsTrigger value="perfil" className="gap-2 px-4 py-2">
             <Building2 className="w-4 h-4" />
-            Perfil do Salão
+            Perfil
           </TabsTrigger>
           <TabsTrigger value="notificacoes" className="gap-2 px-4 py-2">
             <Bell className="w-4 h-4" />
@@ -91,15 +112,15 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="regras" className="gap-2 px-4 py-2">
             <Clock className="w-4 h-4" />
-            Regras de Agendamento
+            Regras de Agenda
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="perfil" className="space-y-6">
           <Card className="border-none shadow-sm">
             <CardHeader>
-              <CardTitle>Informações Gerais</CardTitle>
-              <CardDescription>Estes dados aparecerão para seus clientes na página de agendamento.</CardDescription>
+              <CardTitle>Dados do Salão</CardTitle>
+              <CardDescription>Informações visíveis para seus clientes.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -109,30 +130,27 @@ export default function AdminSettings() {
                     value={salonName} 
                     onChange={(e) => setSalonName(e.target.value)} 
                     placeholder="Ex: Studio VIP" 
+                    className="h-12"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Telefone / WhatsApp</Label>
+                  <Label>WhatsApp</Label>
                   <Input 
                     value={phone} 
                     onChange={(e) => setPhone(e.target.value)} 
                     placeholder="(11) 99999-9999" 
+                    className="h-12"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Endereço Completo</Label>
+                  <Label>Endereço</Label>
                   <Input 
                     value={address} 
                     onChange={(e) => setAddress(e.target.value)} 
                     placeholder="Rua, Número, Bairro - Cidade, UF" 
+                    className="h-12"
                   />
                 </div>
-              </div>
-              <div className="pt-4 flex justify-end">
-                <Button onClick={handleSave} className="gap-2 w-full sm:w-auto" disabled={loading}>
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Salvar Alterações
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -141,32 +159,26 @@ export default function AdminSettings() {
         <TabsContent value="notificacoes">
           <Card className="border-none shadow-sm">
             <CardHeader>
-              <CardTitle>Automações de WhatsApp</CardTitle>
-              <CardDescription>Configure como e quando seus clientes recebem mensagens.</CardDescription>
+              <CardTitle>Automações</CardTitle>
+              <CardDescription>Configure os envios automáticos via WhatsApp.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label className="text-base">Confirmação Instantânea</Label>
-                    <p className="text-sm text-muted-foreground">Envia uma mensagem automática assim que o cliente finaliza o agendamento.</p>
+                    <p className="text-sm text-muted-foreground">Envia mensagem assim que o cliente agenda.</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={notifyInstant} onCheckedChange={setNotifyInstant} />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <Label className="text-base">Lembrete 24h antes</Label>
-                    <p className="text-sm text-muted-foreground">Reduza faltas enviando um lembrete automático um dia antes do serviço.</p>
+                    <Label className="text-base">Lembrete 24h</Label>
+                    <p className="text-sm text-muted-foreground">Reduza faltas enviando um lembrete um dia antes.</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={notifyReminder24h} onCheckedChange={setNotifyReminder24h} />
                 </div>
-              </div>
-              <div className="pt-4 flex justify-end">
-                <Button onClick={() => toast({ title: "Preferências salvas" })} className="gap-2 w-full sm:w-auto">
-                  <Save className="w-4 h-4" />
-                  Salvar Notificações
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -176,24 +188,30 @@ export default function AdminSettings() {
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle>Regras de Negócio</CardTitle>
-              <CardDescription>Defina como sua agenda deve se comportar.</CardDescription>
+              <CardDescription>Defina os limites de agendamento.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Tempo de Antecedência Mínima (horas)</Label>
-                  <Input type="number" defaultValue="2" />
+                  <Label>Antecedência Mínima (horas)</Label>
+                  <Input 
+                    type="number" 
+                    value={minLeadTimeHours} 
+                    onChange={(e) => setMinLeadTimeHours(e.target.value)} 
+                    className="h-12"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Impede agendamentos "em cima da hora".</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Intervalo entre Agendamentos (minutos)</Label>
-                  <Input type="number" defaultValue="15" />
+                  <Label>Intervalo entre Vagas (minutos)</Label>
+                  <Input 
+                    type="number" 
+                    value={slotIntervalMinutes} 
+                    onChange={(e) => setSlotIntervalMinutes(e.target.value)} 
+                    className="h-12"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Ex: 15, 30, 45 ou 60 minutos.</p>
                 </div>
-              </div>
-              <div className="pt-4 flex justify-end">
-                <Button onClick={() => toast({ title: "Regras atualizadas" })} className="gap-2 w-full sm:w-auto">
-                  <Save className="w-4 h-4" />
-                  Salvar Regras
-                </Button>
               </div>
             </CardContent>
           </Card>

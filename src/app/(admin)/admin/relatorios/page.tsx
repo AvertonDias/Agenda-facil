@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   BarChart, 
@@ -19,10 +19,18 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection } from "firebase/firestore";
 import { format, subDays, startOfDay, isWithinInterval, parseISO, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminReports() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const [daysRange, setDaysRange] = useState("7");
 
   // Queries para buscar dados reais
   const appointmentsQuery = useMemoFirebase(() => {
@@ -45,16 +53,10 @@ export default function AdminReports() {
     if (!allAppointments || !allServices) return null;
 
     const now = new Date();
-    const thirtyDaysAgo = subDays(now, 30);
+    const days = parseInt(daysRange);
+    const startDate = subDays(startOfDay(now), days - 1);
 
-    // Filtrar agendamentos dos últimos 30 dias para métricas mensais
-    const recentAppointments = allAppointments.filter(apt => {
-      if (!apt.startTime) return false;
-      const date = parseISO(apt.startTime);
-      return isWithinInterval(date, { start: thirtyDaysAgo, end: now });
-    });
-
-    // Calcular faturamento total (soma de todos os serviços de cada agendamento)
+    // Calcular faturamento de um agendamento (soma de todos os serviços)
     const calculateAptTotal = (apt: any) => {
       const serviceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
       return serviceIds.reduce((acc: number, sId: string) => {
@@ -63,18 +65,25 @@ export default function AdminReports() {
       }, 0);
     };
 
-    const totalRevenue = allAppointments.reduce((acc, apt) => acc + calculateAptTotal(apt), 0);
-    
-    // Contagem de clientes únicos (baseado em telefone ou nome)
-    const uniqueClients = new Set(allAppointments.map(apt => apt.clientPhone || apt.clientName)).size;
+    // Filtrar agendamentos do período selecionado
+    const periodAppointments = allAppointments.filter(apt => {
+      if (!apt.startTime) return false;
+      const date = parseISO(apt.startTime);
+      return isWithinInterval(date, { start: startDate, end: now });
+    });
 
-    // Gerar dados para o gráfico (últimos 7 dias)
-    const last7Days = eachDayOfInterval({
-      start: subDays(startOfDay(now), 6),
+    const totalRevenue = periodAppointments.reduce((acc, apt) => acc + calculateAptTotal(apt), 0);
+    
+    // Contagem de clientes únicos no período
+    const uniqueClients = new Set(periodAppointments.map(apt => apt.clientPhone || apt.clientName)).size;
+
+    // Gerar dados para o gráfico (intervalo selecionado)
+    const intervalDays = eachDayOfInterval({
+      start: startDate,
       end: startOfDay(now)
     });
 
-    const chartData = last7Days.map(day => {
+    const chartData = intervalDays.map(day => {
       const dayAppointments = allAppointments.filter(apt => {
         if (!apt.startTime) return false;
         const aptDate = parseISO(apt.startTime);
@@ -84,7 +93,7 @@ export default function AdminReports() {
       const dayRevenue = dayAppointments.reduce((acc, apt) => acc + calculateAptTotal(apt), 0);
 
       return {
-        name: format(day, 'EEE', { locale: ptBR }),
+        name: format(day, 'dd/MM'),
         faturamento: dayRevenue,
         atendimentos: dayAppointments.length
       };
@@ -92,11 +101,11 @@ export default function AdminReports() {
 
     return {
       totalRevenue,
-      appointmentCount: allAppointments.length,
+      appointmentCount: periodAppointments.length,
       clientCount: uniqueClients,
       chartData
     };
-  }, [allAppointments, allServices]);
+  }, [allAppointments, allServices, daysRange]);
 
   if (isInitialLoading) {
     return (
@@ -113,10 +122,24 @@ export default function AdminReports() {
           <h1 className="text-3xl font-bold">Relatórios</h1>
           <p className="text-muted-foreground">Acompanhe o desempenho real do seu negócio.</p>
         </div>
-        <Button variant="outline" className="gap-2 h-11" onClick={() => window.print()}>
-          <Download className="w-4 h-4" />
-          Imprimir Relatório
-        </Button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Select value={daysRange} onValueChange={setDaysRange}>
+            <SelectTrigger className="w-full sm:w-[200px] h-11 border-2 font-bold rounded-xl bg-white">
+              <SelectValue placeholder="Escolher período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="15">Últimos 15 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="60">Últimos 60 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="gap-2 h-11 border-2 font-bold rounded-xl px-6" onClick={() => window.print()}>
+            <Download className="w-4 h-4" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -127,10 +150,10 @@ export default function AdminReports() {
                 <DollarSign className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Faturamento Total</p>
+                <p className="text-sm text-muted-foreground font-medium">Faturamento no Período</p>
                 <h3 className="text-2xl font-bold">R$ {stats?.totalRevenue.toFixed(2) || '0,00'}</h3>
                 <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <TrendingUp className="w-3 h-3" /> acumulado histórico
+                  <TrendingUp className="w-3 h-3" /> acumulado do filtro
                 </p>
               </div>
             </div>
@@ -144,10 +167,10 @@ export default function AdminReports() {
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Clientes Únicos</p>
+                <p className="text-sm text-muted-foreground font-medium">Clientes Atendidos</p>
                 <h3 className="text-2xl font-bold">{stats?.clientCount || 0}</h3>
                 <p className="text-xs text-blue-600 flex items-center gap-1 mt-1">
-                   Na sua base de dados
+                   Clientes únicos no período
                 </p>
               </div>
             </div>
@@ -164,7 +187,7 @@ export default function AdminReports() {
                 <p className="text-sm text-muted-foreground font-medium">Total de Atendimentos</p>
                 <h3 className="text-2xl font-bold">{stats?.appointmentCount || 0}</h3>
                 <p className="text-xs text-purple-600 flex items-center gap-1 mt-1">
-                  Agendamentos realizados
+                  Agendamentos no período
                 </p>
               </div>
             </div>
@@ -175,7 +198,7 @@ export default function AdminReports() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
           <CardHeader className="bg-secondary/10 border-b">
-            <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Faturamento (Últimos 7 dias)</CardTitle>
+            <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Evolução do Faturamento (Período)</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="h-[300px] w-full">
@@ -203,7 +226,7 @@ export default function AdminReports() {
 
         <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
           <CardHeader className="bg-secondary/10 border-b">
-            <CardTitle className="text-lg font-black uppercase tracking-widest text-accent">Volume de Atendimentos</CardTitle>
+            <CardTitle className="text-lg font-black uppercase tracking-widest text-accent">Volume Diário (Período)</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="h-[300px] w-full">

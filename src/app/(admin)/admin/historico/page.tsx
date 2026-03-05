@@ -21,19 +21,12 @@ import {
   Calendar as CalendarIcon, 
   Scissors,
   CheckCircle2,
-  Phone
+  Phone,
+  Clock
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn, maskPhone } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 export default function AdminHistory() {
   const { user, isUserLoading } = useUser();
@@ -59,7 +52,6 @@ export default function AdminHistory() {
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);
 
-  // Filtra agendamentos concluídos para a lista principal
   const completedAppointments = useMemo(() => {
     if (!allAppointments) return [];
     return allAppointments
@@ -71,12 +63,9 @@ export default function AdminHistory() {
       .sort((a, b) => b.startTime.localeCompare(a.startTime));
   }, [allAppointments, searchTerm]);
 
-  // Ranking de clientes baseado em atendimentos concluídos
-  // Agrupado por telefone, exibindo o nome do agendamento mais recente
   const clientRanking = useMemo(() => {
     if (!allAppointments) return [];
     
-    // 1. Filtrar concluídos e ordenar do mais recente para o mais antigo para pegar o último nome usado
     const concluidosOrdenados = [...allAppointments]
       .filter(apt => apt.status === 'concluido')
       .sort((a, b) => (b.startTime || "").localeCompare(a.startTime || ""));
@@ -84,14 +73,10 @@ export default function AdminHistory() {
     const counts: Record<string, { name: string, phone: string, count: number }> = {};
     
     concluidosOrdenados.forEach(apt => {
-      // Chave baseada apenas no telefone (limpo)
-      // Se não tiver telefone, usa o nome como chave única (para não agrupar todos os 'sem tel' juntos)
       const cleanPhone = apt.clientPhone?.replace(/\D/g, '') || "";
       const key = cleanPhone !== "" ? cleanPhone : `no-phone-${apt.clientName}`;
       
       if (!counts[key]) {
-        // Como o array está ordenado do mais recente para o mais antigo,
-        // a primeira vez que encontramos a chave, pegamos o nome (o último usado).
         counts[key] = { 
           name: apt.clientName, 
           phone: apt.clientPhone || "", 
@@ -171,7 +156,7 @@ export default function AdminHistory() {
           </Card>
         </div>
 
-        {/* Lista de Histórico */}
+        {/* Lista de Histórico em Cards */}
         <div className="lg:col-span-2 space-y-6">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -183,71 +168,77 @@ export default function AdminHistory() {
             />
           </div>
 
-          <Card className="border-none shadow-xl rounded-3xl overflow-hidden bg-white">
-            <CardHeader className="bg-secondary/10 border-b">
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-2">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
                 Atendimentos Finalizados
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-secondary/5 border-none">
-                    <TableHead className="font-black uppercase text-[10px]">Data/Hora</TableHead>
-                    <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
-                    <TableHead className="font-black uppercase text-[10px]">Serviços</TableHead>
-                    <TableHead className="font-black uppercase text-[10px]">Profissional</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {completedAppointments.length > 0 ? (
-                    completedAppointments.map((apt) => {
-                      const aptServices = services?.filter(s => (apt.serviceIds || []).includes(s.id));
-                      const employee = collaborators?.find(c => c.id === apt.employeeId);
-                      return (
-                        <TableRow key={apt.id} className="hover:bg-secondary/5 border-b border-secondary/10">
-                          <TableCell className="py-4">
-                            <div className="flex flex-col">
-                              <span className="font-black text-xs text-primary">{format(parseISO(apt.startTime), "dd/MM/yy")}</span>
-                              <span className="text-[10px] text-muted-foreground font-bold">{format(parseISO(apt.startTime), "HH:mm")}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-bold text-sm">{apt.clientName}</span>
-                              <span className="text-[10px] text-muted-foreground">{maskPhone(apt.clientPhone)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {aptServices?.map(s => (
-                                <Badge key={s.id} variant="secondary" className="text-[8px] font-black uppercase border leading-none py-0.5 px-1.5">
-                                  {s.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-[10px] font-black uppercase text-accent-foreground bg-accent/10 px-2 py-1 rounded-full border border-accent/20">
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {completedAppointments.length > 0 ? (
+                completedAppointments.map((apt) => {
+                  const aptServices = services?.filter(s => (apt.serviceIds || []).includes(s.id));
+                  const employee = collaborators?.find(c => c.id === apt.employeeId);
+                  const startTime = parseISO(apt.startTime);
+
+                  return (
+                    <Card key={apt.id} className="border-none shadow-lg rounded-3xl overflow-hidden bg-white hover:ring-2 hover:ring-primary/20 transition-all">
+                      <div className="bg-secondary/10 px-6 py-3 border-b flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon className="w-3.5 h-3.5 text-primary" />
+                          <span className="text-[10px] font-black text-primary uppercase">
+                            {format(startTime, "dd 'de' MMMM", { locale: ptBR })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-[10px] font-black text-muted-foreground uppercase">
+                            {format(startTime, "HH:mm")}
+                          </span>
+                        </div>
+                      </div>
+                      <CardContent className="p-6 space-y-4">
+                        <div className="space-y-1">
+                          <h4 className="text-lg font-black leading-tight">{apt.clientName}</h4>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-bold">
+                            <Phone className="w-3 h-3 text-primary" />
+                            {apt.clientPhone ? maskPhone(apt.clientPhone) : "Sem telefone"}
+                          </p>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {aptServices?.map(s => (
+                              <Badge key={s.id} variant="secondary" className="text-[9px] font-black uppercase border-2 py-0.5 px-2 bg-white">
+                                <Scissors className="w-2.5 h-2.5 mr-1" />
+                                {s.name}
+                              </Badge>
+                            ))}
+                          </div>
+                          
+                          <div className="pt-3 border-t flex items-center justify-between">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Profissional</span>
+                            <span className="text-[10px] font-black uppercase text-accent-foreground bg-accent/10 px-3 py-1 rounded-full border border-accent/20">
                               {employee?.name || "---"}
                             </span>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="py-20 text-center">
-                        <History className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-                        <p className="text-muted-foreground font-bold uppercase text-xs">Nenhum histórico encontrado.</p>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              ) : (
+                <Card className="col-span-full border-none shadow-xl rounded-3xl py-20 bg-white">
+                  <div className="flex flex-col items-center justify-center text-center px-4">
+                    <History className="w-12 h-12 text-muted-foreground/20 mb-4" />
+                    <p className="text-muted-foreground font-bold uppercase text-xs">Nenhum histórico encontrado.</p>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

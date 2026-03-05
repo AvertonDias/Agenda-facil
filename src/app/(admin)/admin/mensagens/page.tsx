@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { generateWhatsappMessage, type GenerateWhatsappMessageInput } from "@/ai/flows/generate-whatsapp-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,13 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, Sparkles, Copy, Send, Loader2, Settings, Calendar, User, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function AdminMessages() {
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
@@ -24,7 +24,7 @@ export default function AdminMessages() {
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [formData, setFormData] = useState<GenerateWhatsappMessageInput>({
     messageType: 'confirmation',
-    salonName: 'AgendaFácil Pro Studio',
+    salonName: 'Meu Estabelecimento', // Nome padrão inicial
     clientName: '',
     serviceDetails: '',
     appointmentDateTime: '',
@@ -33,6 +33,11 @@ export default function AdminMessages() {
   });
 
   // Queries para buscar dados reais
+  const companyRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    return doc(db, "empresas", user.uid);
+  }, [db, user?.uid]);
+
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return collection(db, "empresas", user.uid, "agendamentos");
@@ -43,8 +48,16 @@ export default function AdminMessages() {
     return collection(db, "empresas", user.uid, "servicos");
   }, [db, user?.uid]);
 
+  const { data: companyData } = useDoc(companyRef);
   const { data: appointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
   const { data: services } = useCollection(servicesQuery);
+
+  // Atualiza o nome do salão quando os dados da empresa carregarem
+  useEffect(() => {
+    if (companyData?.name) {
+      setFormData(prev => ({ ...prev, salonName: companyData.name }));
+    }
+  }, [companyData?.name]);
 
   // Filtra agendamentos futuros ou recentes (ordenados por data)
   const sortedAppointments = useMemo(() => {

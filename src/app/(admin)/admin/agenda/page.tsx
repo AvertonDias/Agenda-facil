@@ -478,7 +478,7 @@ export default function AdminAgenda() {
                         onClick={() => setSelectedTime(time)}
                       >
                         <span className="text-[10px]">{time}</span>
-                        <span className="text-[7px] opacity-70 uppercase">até {endTimeStr}</span>
+                        <span className="text-[7px] uppercase">até {endTimeStr}</span>
                       </Button>
                     );
                   })}
@@ -529,7 +529,7 @@ export default function AdminAgenda() {
         </CardHeader>
         <CardContent className="p-2 flex justify-center">
           <Calendar mode="single" selected={date} onSelect={setDate} locale={ptBR} className="w-full" />
-        </CardHeader>
+        </CardContent>
       </Card>
 
       <Card className="border-none shadow-xl flex flex-col bg-white rounded-2xl overflow-hidden min-h-[400px]">

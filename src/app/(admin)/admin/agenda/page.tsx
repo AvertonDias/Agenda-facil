@@ -17,10 +17,11 @@ import {
   Phone,
   Check,
   Info,
-  Trash2
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -54,8 +55,9 @@ export default function AdminAgenda() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  // Estados do Modal de Novo Agendamento
+  // Estados do Modal
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [selectedService, setSelectedService] = useState("");
@@ -89,7 +91,17 @@ export default function AdminAgenda() {
 
   const isInitialLoading = isUserLoading || loadingApts;
 
-  const handleCreateAppointment = () => {
+  const handleOpenEditDialog = (apt: any) => {
+    setEditingAppointmentId(apt.id);
+    setClientName(apt.clientName);
+    setClientPhone(apt.clientPhone || "");
+    setSelectedService(apt.serviceId);
+    setSelectedEmployee(apt.employeeId);
+    setSelectedTime(apt.time);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveAppointment = () => {
     if (!user || !date || !clientName || !selectedService || !selectedEmployee || !selectedTime) {
       toast({
         title: "Campos obrigatórios",
@@ -110,21 +122,29 @@ export default function AdminAgenda() {
       date: dateStr,
       time: selectedTime,
       status: 'confirmado',
-      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
-    
-    addDocumentNonBlocking(appointmentsRef, appointmentData)
-      .then(() => {
-        toast({
-          title: "Agendamento realizado!",
-          description: `Cliente ${clientName} agendado com sucesso.`,
-        });
-        setIsDialogOpen(false);
-        resetForm();
-      })
-      .finally(() => setIsSubmitting(false));
+    if (editingAppointmentId) {
+      const docRef = doc(db, "empresas", user.uid, "agendamentos", editingAppointmentId);
+      updateDocumentNonBlocking(docRef, appointmentData);
+      toast({ title: "Agendamento atualizado!" });
+      setIsDialogOpen(false);
+      resetForm();
+      setIsSubmitting(false);
+    } else {
+      const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
+      addDocumentNonBlocking(appointmentsRef, { ...appointmentData, createdAt: new Date().toISOString() })
+        .then(() => {
+          toast({
+            title: "Agendamento realizado!",
+            description: `Cliente ${clientName} agendado com sucesso.`,
+          });
+          setIsDialogOpen(false);
+          resetForm();
+        })
+        .finally(() => setIsSubmitting(false));
+    }
   };
 
   const handleDeleteAppointment = (appointmentId: string) => {
@@ -143,6 +163,7 @@ export default function AdminAgenda() {
     setSelectedService("");
     setSelectedEmployee("");
     setSelectedTime("");
+    setEditingAppointmentId(null);
   };
 
   const timeSlots = [
@@ -164,7 +185,7 @@ export default function AdminAgenda() {
 
   const isSlotBusy = (time: string) => {
     if (!appointments || !selectedEmployee) return false;
-    return appointments.some(apt => apt.time === time && apt.employeeId === selectedEmployee);
+    return appointments.some(apt => apt.time === time && apt.employeeId === selectedEmployee && apt.id !== editingAppointmentId);
   };
 
   return (
@@ -179,7 +200,7 @@ export default function AdminAgenda() {
         </div>
         <Button 
           className="gap-2 shadow-lg hover:shadow-xl transition-all"
-          onClick={() => setIsDialogOpen(true)}
+          onClick={() => { resetForm(); setIsDialogOpen(true); }}
         >
           <Plus className="w-4 h-4" />
           Agendar Cliente
@@ -190,8 +211,8 @@ export default function AdminAgenda() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5 text-primary" />
-              Novo Agendamento
+              {editingAppointmentId ? <Edit2 className="w-5 h-5 text-primary" /> : <Plus className="w-5 h-5 text-primary" />}
+              {editingAppointmentId ? "Editar Agendamento" : "Novo Agendamento"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
@@ -295,9 +316,9 @@ export default function AdminAgenda() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateAppointment} disabled={isSubmitting || !selectedTime}>
+            <Button onClick={handleSaveAppointment} disabled={isSubmitting || !selectedTime}>
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
-              Confirmar Agendamento
+              {editingAppointmentId ? "Salvar Alterações" : "Confirmar Agendamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -406,11 +427,17 @@ export default function AdminAgenda() {
                                   </span>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 transition-opacity">
                                         <MoreVertical className="w-4 h-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                      <DropdownMenuItem 
+                                        className="gap-2"
+                                        onClick={() => handleOpenEditDialog(apt)}
+                                      >
+                                        <Edit2 className="w-4 h-4" /> Editar
+                                      </DropdownMenuItem>
                                       <DropdownMenuItem 
                                         className="gap-2 text-destructive"
                                         onClick={() => handleDeleteAppointment(apt.id)}
@@ -455,7 +482,7 @@ export default function AdminAgenda() {
                       <Button 
                         variant="outline" 
                         className="mt-8 gap-2 border-dashed font-bold px-8"
-                        onClick={() => setIsDialogOpen(true)}
+                        onClick={() => { resetForm(); setIsDialogOpen(true); }}
                       >
                         <Plus className="w-4 h-4" /> Novo Agendamento
                       </Button>

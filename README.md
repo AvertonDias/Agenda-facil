@@ -13,13 +13,14 @@ O **AgendaFácil Pro** é uma solução completa para automatizar agendamentos, 
 - **Mensagens com IA**: Assistente Genkit para criar mensagens de confirmação e lembretes para WhatsApp.
 - **Promoções Automáticas**: Sistema de descontos inteligentes para dias específicos ou combos.
 
+
 ## Como subir para o GitHub
 
-Se você recebeu o erro `updates were rejected because the remote contains work that you do not have locally`, utilize os comandos abaixo para forçar a sincronização inicial:
+Se você recebeu o erro `fatal: Need to specify how to reconcile divergent branches`, utilize o comando abaixo para forçar a sincronização inicial:
 
 ### 1. Sincronizar arquivos do GitHub com o local:
 ```bash
-git pull origin main --allow-unrelated-histories
+git pull origin main --no-rebase --allow-unrelated-histories
 ```
 
 ### 2. Agora, envie seus arquivos:

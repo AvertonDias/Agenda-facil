@@ -49,12 +49,15 @@ export default function AdminMessages() {
   // Filtra agendamentos futuros ou recentes (ordenados por data)
   const sortedAppointments = useMemo(() => {
     if (!appointments) return [];
-    return [...appointments].sort((a, b) => b.startTime.localeCompare(a.startTime)).slice(0, 20);
+    return [...appointments]
+      .filter(apt => !!apt.startTime) // Garante que apenas agendamentos com data sejam processados
+      .sort((a, b) => b.startTime.localeCompare(a.startTime))
+      .slice(0, 20);
   }, [appointments]);
 
   const handleSelectAppointment = (appointmentId: string) => {
     const apt = appointments?.find(a => a.id === appointmentId);
-    if (!apt) return;
+    if (!apt || !apt.startTime) return;
 
     const aptServices = services?.filter(s => (apt.serviceIds || []).includes(s.id));
     const serviceNames = aptServices?.map(s => s.name).join(" + ") || "Serviço";

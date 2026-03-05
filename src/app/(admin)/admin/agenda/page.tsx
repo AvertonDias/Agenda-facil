@@ -29,11 +29,10 @@ import {
   useMemoFirebase, 
   addDocumentNonBlocking, 
   updateDocumentNonBlocking, 
-  deleteDocumentNonBlocking,
-  setDocumentNonBlocking
+  deleteDocumentNonBlocking
 } from "@/firebase";
-import { collection, doc, getDoc } from "firebase/firestore";
-import { format, isSameDay, addMinutes, isBefore, addHours, parseISO } from "date-fns";
+import { collection, doc } from "firebase/firestore";
+import { format, isSameDay, addMinutes, isBefore, parseISO } from "date-fns";
 import { cn, maskPhone } from "@/lib/utils";
 import {
   Dialog,
@@ -42,16 +41,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,10 +61,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
 
 const statusConfig = {
   pendente: { label: "Pendente", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -91,21 +78,16 @@ export default function AdminAgenda() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  // Mapeamento serviceId -> employeeId para suportar múltiplos
-  const [serviceAssignments, setServiceAssignments] = useState<Record<string, string>>({});
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("confirmado");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [showConfirmMessageAlert, setShowConfirmMessageAlert] = useState(false);
-  const [lastConfirmedAptId, setLastConfirmedAptId] = useState<string | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -170,45 +152,26 @@ export default function AdminAgenda() {
   }, [selectedServiceIds, services]);
 
   const isSlotBusy = (time: string) => {
-    if (!allAppointments || Object.keys(serviceAssignments).length === 0 || !selectedDate) return false;
+    if (!allAppointments || !selectedEmployeeId || !selectedDate) return false;
     const [h, m] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(h, m, 0, 0);
-    
-    let currentAptStart = slotStart;
-    for (const serviceId of selectedServiceIds) {
-      const empId = serviceAssignments[serviceId];
-      if (!empId) continue;
-      const service = services?.find(s => s.id === serviceId);
-      const duration = service?.durationMinutes || 30;
-      const slotEnd = addMinutes(currentAptStart, duration);
+    const slotEnd = addMinutes(slotStart, totalDuration || 30);
 
-      const busy = allAppointments.some(apt => {
-        if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== empId || apt.status === 'cancelado') return false;
-        const aptStart = parseISO(apt.startTime);
-        const aptEnd = parseISO(apt.endTime);
-        return (currentAptStart < aptEnd && slotEnd > aptStart);
-      });
-      if (busy) return true;
-      currentAptStart = slotEnd;
-    }
-    return false;
+    return allAppointments.some(apt => {
+      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado') return false;
+      const aptStart = parseISO(apt.startTime);
+      const aptEnd = parseISO(apt.endTime);
+      return (slotStart < aptEnd && slotEnd > aptStart);
+    });
   };
 
   const handleOpenEditDialog = (apt: any) => {
     setEditingAppointmentId(apt.id);
     setClientName(apt.clientName);
     setClientPhone(apt.clientPhone || "");
-    const aptServiceIds = apt.serviceIds || [apt.serviceId].filter(Boolean);
-    setSelectedServiceIds(aptServiceIds);
-    
-    // Mapeia o profissional atual para todos os serviços deste agendamento editado
-    const initialAssigns: Record<string, string> = {};
-    aptServiceIds.forEach((sId: string) => {
-      initialAssigns[sId] = apt.employeeId;
-    });
-    setServiceAssignments(initialAssigns);
-    
+    setSelectedServiceIds(apt.serviceIds || [apt.serviceId].filter(Boolean));
+    setSelectedEmployeeId(apt.employeeId);
     setSelectedStatus(apt.status || "confirmado");
     if (apt.startTime) {
       const start = parseISO(apt.startTime);
@@ -218,88 +181,40 @@ export default function AdminAgenda() {
     setTimeout(() => setIsDialogOpen(true), 200);
   };
 
-  const handleUpdateStatus = async (appointmentId: string, newStatus: string) => {
-    if (!user || !db) return;
-    const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
-    updateDocumentNonBlocking(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
-    toast({ title: "Status atualizado!" });
-    if (newStatus === 'confirmado') {
-      setLastConfirmedAptId(appointmentId);
-      setShowConfirmMessageAlert(true);
-    }
-  };
-
   const handleSaveAppointment = async () => {
-    if (!user || !clientName || selectedServiceIds.length === 0 || Object.keys(serviceAssignments).length !== selectedServiceIds.length || !selectedTime || !selectedDate) {
-      toast({ title: "Campos obrigatórios", description: "Selecione todos os serviços e profissionais.", variant: "destructive" });
+    if (!user || !clientName || selectedServiceIds.length === 0 || !selectedEmployeeId || !selectedTime || !selectedDate) {
+      toast({ title: "Campos obrigatórios", description: "Preencha todos os campos corretamente.", variant: "destructive" });
       return;
     }
 
     const [hours, minutes] = selectedTime.split(':').map(Number);
-    const baseStartTime = new Date(selectedDate);
-    baseStartTime.setHours(hours, minutes, 0, 0);
+    const startTime = new Date(selectedDate);
+    startTime.setHours(hours, minutes, 0, 0);
+    const endTime = addMinutes(startTime, totalDuration);
 
     setIsSubmitting(true);
     
-    // Agrupa serviços por profissional para criar o mínimo de documentos possível
-    const appointmentsToCreate: { employeeId: string, serviceIds: string[], startTime: Date, endTime: Date }[] = [];
-    let currentStart = baseStartTime;
-
-    selectedServiceIds.forEach(sId => {
-      const empId = serviceAssignments[sId];
-      const service = services?.find(s => s.id === sId);
-      const duration = service?.durationMinutes || 30;
-      const currentEnd = addMinutes(currentStart, duration);
-
-      const lastApt = appointmentsToCreate[appointmentsToCreate.length - 1];
-      if (lastApt && lastApt.employeeId === empId) {
-        lastApt.serviceIds.push(sId);
-        lastApt.endTime = currentEnd;
-      } else {
-        appointmentsToCreate.push({
-          employeeId: empId,
-          serviceIds: [sId],
-          startTime: new Date(currentStart),
-          endTime: currentEnd
-        });
-      }
-      currentStart = currentEnd;
-    });
+    const data = {
+      clientName,
+      clientPhone,
+      serviceIds: selectedServiceIds,
+      employeeId: selectedEmployeeId,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      timezone: "America/Sao_Paulo",
+      status: selectedStatus,
+      updatedAt: new Date().toISOString(),
+    };
 
     try {
       if (editingAppointmentId) {
-        // Se estiver editando, apenas atualiza o documento atual (não suporta split na edição por simplicidade)
         const docRef = doc(db, "empresas", user.uid, "agendamentos", editingAppointmentId);
-        const apt = appointmentsToCreate[0]; // Pega o primeiro grupo
-        updateDocumentNonBlocking(docRef, {
-          clientName,
-          clientPhone,
-          serviceIds: selectedServiceIds,
-          employeeId: serviceAssignments[selectedServiceIds[0]],
-          startTime: baseStartTime.toISOString(),
-          endTime: addMinutes(baseStartTime, totalDuration).toISOString(),
-          status: selectedStatus,
-          updatedAt: new Date().toISOString(),
-        });
+        updateDocumentNonBlocking(docRef, data);
       } else {
         const appointmentsRef = collection(db, "empresas", user.uid, "agendamentos");
-        const promises = appointmentsToCreate.map(apt => {
-          return addDocumentNonBlocking(appointmentsRef, {
-            clientName,
-            clientPhone,
-            serviceIds: apt.serviceIds,
-            employeeId: apt.employeeId,
-            startTime: apt.startTime.toISOString(),
-            endTime: apt.endTime.toISOString(),
-            timezone: "America/Sao_Paulo",
-            status: selectedStatus,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        });
-        await Promise.all(promises);
+        addDocumentNonBlocking(appointmentsRef, { ...data, createdAt: new Date().toISOString() });
       }
-      toast({ title: editingAppointmentId ? "Agendamento atualizado!" : "Agendamentos realizados!" });
+      toast({ title: editingAppointmentId ? "Agendamento atualizado!" : "Agendamento realizado!" });
       setIsDialogOpen(false);
       resetForm();
     } catch (e) {
@@ -320,7 +235,7 @@ export default function AdminAgenda() {
     setClientName("");
     setClientPhone("");
     setSelectedServiceIds([]);
-    setServiceAssignments({});
+    setSelectedEmployeeId("");
     setSelectedTime("");
     setSelectedStatus("confirmado");
     setSelectedDate(date || new Date());
@@ -328,17 +243,9 @@ export default function AdminAgenda() {
   };
 
   const toggleService = (id: string) => {
-    setSelectedServiceIds(prev => {
-      const isSelected = prev.includes(id);
-      if (isSelected) {
-        const newAssigns = { ...serviceAssignments };
-        delete newAssigns[id];
-        setServiceAssignments(newAssigns);
-        return prev.filter(sId => sId !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
+    setSelectedServiceIds(prev => 
+      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+    );
   };
 
   const isInitialLoading = isUserLoading || (loadingApts && !allAppointments) || !date;
@@ -410,53 +317,55 @@ export default function AdminAgenda() {
             </div>
 
             <div className="space-y-4">
-              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Serviços e Profissionais</Label>
-              <div className="grid gap-3 p-4 border-2 rounded-xl bg-secondary/5">
+              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Serviços</Label>
+              <div className="grid grid-cols-2 gap-2 p-4 border-2 rounded-xl bg-secondary/5">
                 {services?.map(s => (
-                  <div key={s.id} className="space-y-2 border-b last:border-none pb-2">
-                    <div 
-                      className={cn(
-                        "flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all",
-                        selectedServiceIds.includes(s.id) ? "bg-primary/10" : "bg-transparent"
-                      )}
-                      onClick={() => toggleService(s.id)}
-                    >
-                      <span className="text-xs font-bold">{s.name} ({s.durationMinutes}m)</span>
-                      {selectedServiceIds.includes(s.id) ? <Check className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-muted-foreground" />}
-                    </div>
-                    {selectedServiceIds.includes(s.id) && (
-                      <Select 
-                        onValueChange={(v) => setServiceAssignments(prev => ({ ...prev, [s.id]: v }))} 
-                        value={serviceAssignments[s.id]}
-                      >
-                        <SelectTrigger className="h-9 border-2 text-[10px] font-bold">
-                          <SelectValue placeholder="Escolha quem vai fazer..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {collaborators?.filter(c => c.offeredServiceIds?.includes(s.id)).map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div 
+                    key={s.id} 
+                    className={cn(
+                      "flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all",
+                      selectedServiceIds.includes(s.id) ? "bg-primary/10 border-primary" : "bg-transparent border-transparent"
                     )}
+                    onClick={() => toggleService(s.id)}
+                  >
+                    <span className="text-xs font-bold">{s.name}</span>
+                    {selectedServiceIds.includes(s.id) ? <Check className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-muted-foreground" />}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
-              <Select onValueChange={setSelectedStatus} value={selectedStatus}>
-                <SelectTrigger className="h-12 border-2 rounded-xl">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pendente">Pendente</SelectItem>
-                  <SelectItem value="confirmado">Confirmado</SelectItem>
-                  <SelectItem value="concluido">Concluído</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Profissional</Label>
+                <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+                  <SelectTrigger className="h-12 border-2 rounded-xl">
+                    <SelectValue placeholder="Escolha um profissional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collaborators?.filter(c => 
+                      selectedServiceIds.length === 0 || 
+                      selectedServiceIds.every(sId => c.offeredServiceIds?.includes(sId))
+                    ).map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
+                <Select onValueChange={setSelectedStatus} value={selectedStatus}>
+                  <SelectTrigger className="h-12 border-2 rounded-xl">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="confirmado">Confirmado</SelectItem>
+                    <SelectItem value="concluido">Concluído</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -589,4 +498,3 @@ export default function AdminAgenda() {
     </div>
   );
 }
-

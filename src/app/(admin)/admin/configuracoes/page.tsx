@@ -26,7 +26,8 @@ import {
   Gift,
   Trophy,
   Users,
-  Plane
+  Plane,
+  Coffee
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
@@ -72,12 +73,12 @@ export default function AdminSettings() {
   const [minLeadTimeHours, setMinLeadTimeHours] = useState("2");
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState("30");
 
-  const [workingHours, setWorkingHours] = useState<Record<string, { open: string, close: string, closed: boolean }>>({
-    monday: { open: "08:00", close: "18:00", closed: false },
-    tuesday: { open: "08:00", close: "18:00", closed: false },
-    wednesday: { open: "08:00", close: "18:00", closed: false },
-    thursday: { open: "08:00", close: "18:00", closed: false },
-    friday: { open: "08:00", close: "18:00", closed: false },
+  const [workingHours, setWorkingHours] = useState<Record<string, { open: string, close: string, breakStart?: string, breakEnd?: string, closed: boolean }>>({
+    monday: { open: "08:00", close: "18:00", breakStart: "12:00", breakEnd: "13:00", closed: false },
+    tuesday: { open: "08:00", close: "18:00", breakStart: "12:00", breakEnd: "13:00", closed: false },
+    wednesday: { open: "08:00", close: "18:00", breakStart: "12:00", breakEnd: "13:00", closed: false },
+    thursday: { open: "08:00", close: "18:00", breakStart: "12:00", breakEnd: "13:00", closed: false },
+    friday: { open: "08:00", close: "18:00", breakStart: "12:00", breakEnd: "13:00", closed: false },
     saturday: { open: "08:00", close: "12:00", closed: false },
     sunday: { open: "08:00", close: "12:00", closed: true },
   });
@@ -304,29 +305,53 @@ export default function AdminSettings() {
         <TabsContent value="horario">
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
             <CardHeader className="bg-secondary/10">
-              <CardTitle>Horário de Funcionamento</CardTitle>
-              <CardDescription>Defina quando sua agenda está aberta para o público.</CardDescription>
+              <CardTitle>Horário de Funcionamento e Intervalos</CardTitle>
+              <CardDescription>Defina quando sua agenda está aberta e os horários de pausa (ex: almoço).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 p-8">
               {DAYS_OF_WEEK.map((day) => (
-                <div key={day.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl border-2 border-dashed bg-secondary/5 transition-all hover:bg-white hover:border-primary/30">
-                  <div className="flex items-center gap-4 min-w-[150px]">
-                    <Switch 
-                      checked={!workingHours[day.id]?.closed} 
-                      onCheckedChange={(checked) => updateDay(day.id, "closed", !checked)} 
-                    />
-                    <Label className={cn("font-black uppercase text-xs tracking-widest", workingHours[day.id]?.closed ? "text-muted-foreground/50" : "text-foreground")}>
-                      {day.label}
-                    </Label>
-                  </div>
-                  {!workingHours[day.id]?.closed ? (
-                    <div className="flex items-center gap-3">
-                      <Input type="time" value={workingHours[day.id]?.open} onChange={(e) => updateDay(day.id, "open", e.target.value)} className="w-[120px] h-12 border-2 rounded-xl font-black text-center" />
-                      <span className="text-muted-foreground font-black text-[10px] uppercase">até</span>
-                      <Input type="time" value={workingHours[day.id]?.close} onChange={(e) => updateDay(day.id, "close", e.target.value)} className="w-[120px] h-12 border-2 rounded-xl font-black text-center" />
+                <div key={day.id} className="flex flex-col gap-4 p-6 rounded-3xl border-2 border-dashed bg-secondary/5 transition-all hover:bg-white hover:border-primary/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 min-w-[150px]">
+                      <Switch 
+                        checked={!workingHours[day.id]?.closed} 
+                        onCheckedChange={(checked) => updateDay(day.id, "closed", !checked)} 
+                      />
+                      <Label className={cn("font-black uppercase text-xs tracking-widest", workingHours[day.id]?.closed ? "text-muted-foreground/50" : "text-foreground")}>
+                        {day.label}
+                      </Label>
                     </div>
-                  ) : (
-                    <div className="bg-destructive/10 text-destructive px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest">Fechado</div>
+                    {workingHours[day.id]?.closed && (
+                      <div className="bg-destructive/10 text-destructive px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest">Fechado</div>
+                    )}
+                  </div>
+                  
+                  {!workingHours[day.id]?.closed && (
+                    <div className="flex flex-wrap items-center gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Expediente
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="time" value={workingHours[day.id]?.open} onChange={(e) => updateDay(day.id, "open", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center" />
+                          <span className="text-muted-foreground font-bold text-[10px] uppercase">até</span>
+                          <Input type="time" value={workingHours[day.id]?.close} onChange={(e) => updateDay(day.id, "close", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center" />
+                        </div>
+                      </div>
+
+                      <div className="h-10 w-px bg-border hidden sm:block" />
+
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-primary flex items-center gap-1">
+                          <Coffee className="w-3 h-3" /> Intervalo / Almoço
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input type="time" value={workingHours[day.id]?.breakStart} onChange={(e) => updateDay(day.id, "breakStart", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center border-primary/20" />
+                          <span className="text-muted-foreground font-bold text-[10px] uppercase">até</span>
+                          <Input type="time" value={workingHours[day.id]?.breakEnd} onChange={(e) => updateDay(day.id, "breakEnd", e.target.value)} className="w-[100px] h-10 border-2 rounded-xl font-bold text-center border-primary/20" />
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}

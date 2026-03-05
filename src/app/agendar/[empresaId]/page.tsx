@@ -129,8 +129,15 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     current.setHours(startH, startM, 0, 0);
     const end = new Date(selectedDate);
     end.setHours(endH, endM, 0, 0);
+
     while (current <= end) {
-      slots.push(format(current, "HH:mm"));
+      const slotTime = format(current, "HH:mm");
+      const isBreak = config.breakStart && config.breakEnd && 
+                      slotTime >= config.breakStart && slotTime < config.breakEnd;
+      
+      if (!isBreak) {
+        slots.push(slotTime);
+      }
       current = addMinutes(current, slotInterval);
     }
     return slots;

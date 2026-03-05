@@ -28,7 +28,9 @@ import {
   Users,
   Plane,
   Coffee,
-  Info
+  Info,
+  MessageSquare,
+  AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
@@ -463,24 +465,70 @@ export default function AdminSettings() {
         <TabsContent value="notificacoes">
           <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
             <CardHeader className="bg-secondary/10">
-              <CardTitle>Notificações</CardTitle>
-              <CardDescription>Configure como as notificações são enviadas.</CardDescription>
+              <CardTitle>Comunicação e Alertas</CardTitle>
+              <CardDescription>Configure como e quando você e seus clientes são avisados sobre novos agendamentos.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 p-8">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base font-bold">Confirmação Instantânea</Label>
-                  <p className="text-sm text-muted-foreground">Envia mensagem assim que o cliente agenda.</p>
+            <CardContent className="space-y-10 p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
+                        <MessageSquare className="w-3 h-3" /> Confirmação Instantânea
+                      </Label>
+                      <p className="text-xs text-muted-foreground font-medium">Envia uma mensagem automática assim que o cliente finaliza o agendamento no site.</p>
+                    </div>
+                    <Switch checked={notifyInstant} onCheckedChange={setNotifyInstant} />
+                  </div>
+                  <div className="p-4 bg-secondary/20 rounded-2xl border-2 border-dashed flex gap-3">
+                    <div className="bg-primary/10 p-2 rounded-xl h-fit">
+                      <Zap className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase text-primary tracking-widest">Exemplo Prático</p>
+                      <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
+                        O cliente João agendou um serviço às 14:00. Às 14:01 ele recebe um WhatsApp: <span className="text-foreground font-black italic">"Olá João, seu corte está confirmado para amanhã às 10h!"</span>. Isso gera confiança imediata.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Switch checked={notifyInstant} onCheckedChange={setNotifyInstant} />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Bell className="w-3 h-3" /> Lembrete 24h Antes
+                      </Label>
+                      <p className="text-xs text-muted-foreground font-medium">Reduza as faltas (no-shows) enviando um aviso um dia antes do compromisso.</p>
+                    </div>
+                    <Switch checked={notifyReminder24h} onCheckedChange={setNotifyReminder24h} />
+                  </div>
+                  <div className="p-4 bg-secondary/20 rounded-2xl border-2 border-dashed flex gap-3">
+                    <div className="bg-accent/10 p-2 rounded-xl h-fit">
+                      <AlertCircle className="w-4 h-4 text-accent" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase text-accent tracking-widest">Exemplo Prático</p>
+                      <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
+                        Se o cliente tem um horário amanhã, ele recebe um lembrete hoje. Isso reduz o esquecimento em até <span className="text-foreground font-black">70%</span> e permite que você libere a vaga caso ele precise cancelar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base font-bold">Lembrete 24h</Label>
-                  <p className="text-sm text-muted-foreground">Reduza faltas enviando um lembrete um dia antes.</p>
+
+              <Separator className="bg-border/50" />
+              
+              <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/20 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                <div className="p-4 bg-primary text-white rounded-2xl shadow-lg">
+                  <Settings className="w-8 h-8" />
                 </div>
-                <Switch checked={notifyReminder24h} onCheckedChange={setNotifyReminder24h} />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black uppercase text-primary tracking-widest">Dica de Gestão</h4>
+                  <p className="text-sm font-bold leading-relaxed">
+                    Manter as notificações ativas é a melhor forma de profissionalizar seu salão. Clientes que recebem lembretes sentem-se mais bem cuidados e valorizam mais o seu tempo.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -24,13 +24,23 @@ import {
   Zap, 
   X,
   Gift,
-  Trophy
+  Trophy,
+  Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
 import { cn, maskPhone } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 
 const DAYS_OF_WEEK = [
   { id: "monday", label: "Segunda-feira" },
@@ -87,8 +97,14 @@ export default function AdminSettings() {
     return collection(db, "empresas", user.uid, "servicos");
   }, [db, user]);
 
+  const loyaltyQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, "empresas", user.uid, "fidelidade");
+  }, [db, user]);
+
   const { data: companyData, isLoading } = useDoc(companyRef);
   const { data: services } = useCollection(servicesQuery);
+  const { data: loyaltyRecords, isLoading: loadingLoyalty } = useCollection(loyaltyQuery);
 
   useEffect(() => {
     if (companyData) {
@@ -450,68 +466,129 @@ export default function AdminSettings() {
         </TabsContent>
 
         <TabsContent value="fidelidade">
-          <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
-            <CardHeader className="bg-primary/5 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="w-5 h-5 text-primary" />
-                Programa de Fidelidade
-              </CardTitle>
-              <CardDescription>Crie um cartão fidelidade digital para seus clientes recorrentes.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="flex items-center justify-between p-6 bg-secondary/5 rounded-3xl border-2 border-dashed">
-                <div className="space-y-0.5">
-                  <Label className="text-lg font-black uppercase tracking-tight">Ativar Programa de Fidelidade</Label>
-                  <p className="text-sm text-muted-foreground">Permite que clientes acumulem pontos a cada visita.</p>
+          <div className="space-y-8">
+            <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-primary" />
+                  Programa de Fidelidade
+                </CardTitle>
+                <CardDescription>Crie um cartão fidelidade digital para seus clientes recorrentes.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 space-y-8">
+                <div className="flex items-center justify-between p-6 bg-secondary/5 rounded-3xl border-2 border-dashed">
+                  <div className="space-y-0.5">
+                    <Label className="text-lg font-black uppercase tracking-tight">Ativar Programa de Fidelidade</Label>
+                    <p className="text-sm text-muted-foreground">Permite que clientes acumulem pontos a cada visita.</p>
+                  </div>
+                  <Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} />
                 </div>
-                <Switch checked={loyaltyEnabled} onCheckedChange={setLoyaltyEnabled} />
-              </div>
 
-              {loyaltyEnabled && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pontos por Visita</Label>
-                    <Input 
-                      type="number" 
-                      value={loyaltyPointsPerVisit} 
-                      onChange={(e) => setLoyaltyPointsPerVisit(e.target.value)}
-                      className="h-14 border-2 rounded-2xl font-black text-xl text-center"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Objetivo (Pontos)</Label>
-                    <Input 
-                      type="number" 
-                      value={loyaltyGoal} 
-                      onChange={(e) => setLoyaltyGoal(e.target.value)}
-                      className="h-14 border-2 rounded-2xl font-black text-xl text-center"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recompensa</Label>
-                    <Input 
-                      value={loyaltyReward} 
-                      onChange={(e) => setLoyaltyReward(e.target.value)}
-                      placeholder="Ex: Corte Grátis"
-                      className="h-14 border-2 rounded-2xl font-bold"
-                    />
-                  </div>
-                  <div className="md:col-span-3 p-6 bg-primary/5 rounded-3xl border-2 border-primary/20 flex items-center gap-4">
-                    <div className="p-3 bg-primary text-white rounded-2xl shadow-lg">
-                      <Trophy className="w-6 h-6" />
+                {loyaltyEnabled && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pontos por Visita</Label>
+                      <Input 
+                        type="number" 
+                        value={loyaltyPointsPerVisit} 
+                        onChange={(e) => setLoyaltyPointsPerVisit(e.target.value)}
+                        className="h-14 border-2 rounded-2xl font-black text-xl text-center"
+                      />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-black uppercase text-primary tracking-widest">Exemplo de Regra</p>
-                      <p className="text-lg font-bold leading-tight">
-                        Ao completar <span className="text-primary font-black underline">{loyaltyGoal} pontos</span>, o cliente ganha: <span className="text-primary font-black">{loyaltyReward}</span>.
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-medium">Os pontos são creditados automaticamente quando você marcar o agendamento como "Concluído" na agenda.</p>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Objetivo (Pontos)</Label>
+                      <Input 
+                        type="number" 
+                        value={loyaltyGoal} 
+                        onChange={(e) => setLoyaltyGoal(e.target.value)}
+                        className="h-14 border-2 rounded-2xl font-black text-xl text-center"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recompensa</Label>
+                      <Input 
+                        value={loyaltyReward} 
+                        onChange={(e) => setLoyaltyReward(e.target.value)}
+                        placeholder="Ex: Corte Grátis"
+                        className="h-14 border-2 rounded-2xl font-bold"
+                      />
+                    </div>
+                    <div className="md:col-span-3 p-6 bg-primary/5 rounded-3xl border-2 border-primary/20 flex items-center gap-4">
+                      <div className="p-3 bg-primary text-white rounded-2xl shadow-lg">
+                        <Trophy className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-black uppercase text-primary tracking-widest">Exemplo de Regra</p>
+                        <p className="text-lg font-bold leading-tight">
+                          Ao completar <span className="text-primary font-black underline">{loyaltyGoal} pontos</span>, o cliente ganha: <span className="text-primary font-black">{loyaltyReward}</span>.
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-medium">Os pontos são creditados automaticamente quando você marcar o agendamento como "Concluído" na agenda.</p>
+                      </div>
                     </div>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {loyaltyEnabled && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 px-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h3 className="text-xl font-black uppercase tracking-tight">Clientes com Pontos</h3>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader className="bg-secondary/10">
+                        <TableRow className="border-none">
+                          <TableHead className="font-black uppercase text-[10px] h-12">Telefone do Cliente</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] text-center h-12">Pontos</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] text-right h-12 pr-6">Progresso</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingLoyalty ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-10">
+                              <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+                            </TableCell>
+                          </TableRow>
+                        ) : loyaltyRecords?.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-16 text-muted-foreground font-bold">
+                              Nenhum cliente com pontos acumulados ainda.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          loyaltyRecords?.map((record) => {
+                            const goal = parseInt(loyaltyGoal) || 10;
+                            const progress = Math.min(100, (record.points / goal) * 100);
+                            return (
+                              <TableRow key={record.id} className="border-b-2 border-secondary/20 hover:bg-secondary/5 transition-colors">
+                                <TableCell className="font-bold py-4">{maskPhone(record.phone)}</TableCell>
+                                <TableCell className="text-center font-black text-primary text-lg">{record.points}</TableCell>
+                                <TableCell className="text-right pr-6">
+                                  <div className="flex flex-col items-end gap-1.5">
+                                    <div className="flex items-center gap-3">
+                                      <Progress value={progress} className="w-32 h-2" />
+                                      <span className="text-[10px] font-black w-8">{Math.round(progress)}%</span>
+                                    </div>
+                                    {record.points >= goal && (
+                                      <span className="text-[9px] font-black text-accent uppercase animate-pulse">Prêmio Disponível! 🎁</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -19,7 +19,9 @@ import {
   Edit2,
   Calendar as CalendarIcon,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Users
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -89,6 +91,8 @@ export default function AdminAgenda() {
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("confirmado");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [contactSearch, setContactSearch] = useState("");
 
   useEffect(() => {
     const now = new Date();
@@ -116,10 +120,16 @@ export default function AdminAgenda() {
     return collection(db, "empresas", user.uid, "agendamentos");
   }, [db, user?.uid]);
 
+  const loyaltyQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    return collection(db, "empresas", user.uid, "fidelidade");
+  }, [db, user?.uid]);
+
   const { data: companyData } = useDoc(companyRef);
   const { data: services } = useCollection(servicesQuery);
   const { data: collaborators } = useCollection(collaboratorsQuery);
   const { data: allAppointments, isLoading: loadingApts } = useCollection(appointmentsQuery);
+  const { data: contacts } = useCollection(loyaltyQuery);
 
   const slotInterval = companyData?.slotIntervalMinutes || 30;
 
@@ -160,6 +170,14 @@ export default function AdminAgenda() {
     );
   }, [collaborators, selectedServiceIds]);
 
+  const filteredContacts = useMemo(() => {
+    if (!contacts) return [];
+    return contacts.filter(c => 
+      (c.clientName?.toLowerCase().includes(contactSearch.toLowerCase()) || 
+       c.phone?.includes(contactSearch))
+    ).slice(0, 5);
+  }, [contacts, contactSearch]);
+
   const isSlotBusy = (time: string) => {
     if (!allAppointments || !selectedEmployeeId || !selectedDate) return false;
     const [h, m] = time.split(':').map(Number);
@@ -188,6 +206,16 @@ export default function AdminAgenda() {
       setSelectedTime(format(start, "HH:mm"));
     }
     setTimeout(() => setIsDialogOpen(true), 200);
+  };
+
+  const handleSelectContact = (contact: any) => {
+    setClientName(contact.clientName || "");
+    setClientPhone(maskPhone(contact.phone || ""));
+    setContactSearch("");
+    toast({
+      title: "Cliente Selecionado",
+      description: `${contact.clientName} importado da lista de contatos.`,
+    });
   };
 
   const handleSaveAppointment = async () => {
@@ -315,7 +343,45 @@ export default function AdminAgenda() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="clientName" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Nome do Cliente</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="clientName" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Nome do Cliente</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 gap-1 px-2 text-[10px] font-black uppercase text-primary">
+                        <Users className="w-3 h-3" /> Contatos
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[250px] p-0" align="end">
+                      <div className="p-3 border-b bg-secondary/10">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Buscar contato..." 
+                            className="pl-8 h-9 text-xs" 
+                            value={contactSearch}
+                            onChange={(e) => setContactSearch(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-[250px] overflow-y-auto">
+                        {filteredContacts.length > 0 ? (
+                          filteredContacts.map(contact => (
+                            <div 
+                              key={contact.id} 
+                              className="p-3 hover:bg-secondary/20 cursor-pointer border-b last:border-0"
+                              onClick={() => handleSelectContact(contact)}
+                            >
+                              <p className="text-xs font-bold">{contact.clientName}</p>
+                              <p className="text-[10px] text-muted-foreground">{maskPhone(contact.phone)}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center text-[10px] text-muted-foreground font-bold">Nenhum contato encontrado</div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Ex: João Silva" className="h-12 border-2 rounded-xl" />
               </div>
               <div className="space-y-2">

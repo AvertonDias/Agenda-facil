@@ -84,7 +84,7 @@ export function AdminSidebar() {
     navigator.clipboard.writeText(message);
     toast({
       title: "Mensagem copiada!",
-      description: "A nova mensagem com o seu link de agendamento foi copiada. Agora é só colar no WhatsApp!",
+      description: "A mensagem com o seu link de agendamento foi copiada. Agora é só colar no WhatsApp!",
     });
   };
 
@@ -166,8 +166,9 @@ export function AdminSidebar() {
                   <ExternalLink className="w-5 h-5 shrink-0" />
                   <span>Ver Página Pública</span>
                 </Link>
-              </SidebarMenuItem>
-            )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
 

@@ -78,13 +78,13 @@ export function AdminSidebar() {
 
   const copyBookingLink = () => {
     if (!user) return;
-    const salonName = user.displayName?.split(' ')[0] || 'nosso salão';
-    const message = `Olá! Você já pode agendar seu horário no ${salonName} diretamente pelo nosso site: ${bookingUrl}\n\nAguardo você!`;
+    
+    const message = `Olá! Agora ficou ainda mais fácil agendar seu horário.\n\nClique no link abaixo, escolha o serviço e o melhor horário disponível:\n\n${bookingUrl}\n\nTe espero em breve!`;
     
     navigator.clipboard.writeText(message);
     toast({
       title: "Mensagem copiada!",
-      description: "A mensagem com o seu link de agendamento foi copiada. Agora é só colar no WhatsApp!",
+      description: "A nova mensagem com o seu link de agendamento foi copiada. Agora é só colar no WhatsApp!",
     });
   };
 

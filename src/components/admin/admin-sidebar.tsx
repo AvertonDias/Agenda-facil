@@ -166,9 +166,8 @@ export function AdminSidebar() {
                   <ExternalLink className="w-5 h-5 shrink-0" />
                   <span>Ver Página Pública</span>
                 </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
+              </SidebarMenuItem>
+            )}
         </SidebarMenu>
       </SidebarContent>
 
@@ -198,7 +197,7 @@ export function AdminSidebar() {
               Seu QR Code de Agendamento
             </DialogTitle>
             <DialogDescription className="font-medium text-muted-foreground">
-              Este código permite que seus clientes acessem sua agenda instantaneamente apenas apontando a câmera do celular.
+              Seus clientes podem agendar em segundos apontando a câmera para este QR Code.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center py-8 bg-secondary/5 rounded-3xl border-2 border-dashed gap-6">

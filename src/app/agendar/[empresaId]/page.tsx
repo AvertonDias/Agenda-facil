@@ -150,17 +150,13 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     slotStart.setHours(h, m, 0, 0);
     const slotEnd = addMinutes(slotStart, totalDuration);
 
-    // Regra de antecedência mínima
     if (isSameDay(selectedDate, new Date()) && isBefore(slotStart, new Date())) return true;
     if (isBefore(slotStart, addHours(new Date(), minLeadTime))) return true;
 
-    // Regra de Conflito Robusta: novoInicio < existFim && novoFim > existInicio
     return allAppointments.some(apt => {
-      // Ignora cancelados ou não comparecidos para liberar o horário
       if (!apt.startTime || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado' || apt.status === 'nao_compareceu') return false;
       const aptStart = parseISO(apt.startTime);
       const aptEnd = parseISO(apt.endTime);
-      
       return (slotStart < aptEnd && slotEnd > aptStart);
     });
   };
@@ -186,10 +182,12 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
         serviceIds: selectedServiceIds,
         employeeId: selectedEmployeeId,
         startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(), // Salvo para facilitar leituras futuras
+        endTime: endTime.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         status: "pendente",
         finalPrice: totalPrice,
+        confirmationSent: false, // Inicia como false para a Cloud Function disparar
+        reminderSent: false,     // Inicia como false para o Scheduler disparar
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });

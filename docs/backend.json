@@ -48,6 +48,8 @@
         "loyaltyReward": { "type": "string" },
         "minLeadTimeHours": { "type": "number" },
         "slotIntervalMinutes": { "type": "number" },
+        "whatsappApiUrl": { "type": "string", "description": "URL da API de WhatsApp (Ex: Z-API)" },
+        "whatsappApiToken": { "type": "string", "description": "Token de autenticação da API" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "ownerId"]
@@ -85,16 +87,18 @@
       "description": "Agendamento de serviço com suporte a múltiplos serviços.",
       "properties": {
         "id": { "type": "string" },
-        "salonId": { "type": "string", "description": "ID da empresa/salão" },
+        "salonId": { "type": "string" },
         "clientName": { "type": "string" },
         "clientPhone": { "type": "string" },
-        "serviceIds": { "type": "array", "items": { "type": "string" }, "description": "Lista de IDs dos serviços selecionados" },
+        "serviceIds": { "type": "array", "items": { "type": "string" } },
         "employeeId": { "type": "string" },
-        "startTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de início" },
-        "endTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de fim" },
-        "timezone": { "type": "string", "description": "Fuso horário original (ex: America/Sao_Paulo)" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "timezone": { "type": "string" },
         "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado", "concluido", "nao_compareceu"] },
-        "finalPrice": { "type": "number" }
+        "finalPrice": { "type": "number" },
+        "confirmationSent": { "type": "boolean", "description": "Flag para disparar Cloud Function de confirmação" },
+        "reminderSent": { "type": "boolean", "description": "Flag para o Scheduler de lembretes" }
       },
       "required": ["id", "clientName", "serviceIds", "employeeId", "startTime", "endTime", "timezone"]
     },

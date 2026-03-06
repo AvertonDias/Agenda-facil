@@ -30,7 +30,8 @@ import {
   Coffee,
   Info,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  Key
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
@@ -75,6 +76,9 @@ export default function AdminSettings() {
 
   const [minLeadTimeHours, setMinLeadTimeHours] = useState("2");
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState("30");
+
+  const [whatsappApiUrl, setWhatsappApiUrl] = useState("");
+  const [whatsappApiToken, setWhatsappApiToken] = useState("");
 
   const [workingHours, setWorkingHours] = useState<Record<string, { open: string, close: string, breakStart?: string, breakEnd?: string, closed: boolean }>>({
     monday: { open: "08:00", close: "18:00", breakStart: "12:00", breakEnd: "13:00", closed: false },
@@ -123,6 +127,9 @@ export default function AdminSettings() {
       setNotifyReminder24h(companyData.notifyReminder24h ?? true);
       setMinLeadTimeHours(String(companyData.minLeadTimeHours ?? "2"));
       setSlotIntervalMinutes(String(companyData.slotIntervalMinutes ?? "30"));
+      setWhatsappApiUrl(companyData.whatsappApiUrl || "");
+      setWhatsappApiToken(companyData.whatsappApiToken || "");
+      
       if (companyData.workingHours) {
         setWorkingHours(companyData.workingHours);
       }
@@ -160,6 +167,8 @@ export default function AdminSettings() {
       notifyReminder24h,
       minLeadTimeHours: parseInt(minLeadTimeHours) || 0,
       slotIntervalMinutes: parseInt(slotIntervalMinutes) || 30,
+      whatsappApiUrl,
+      whatsappApiToken,
       workingHours,
       offDays: offDays.map(d => format(d, 'yyyy-MM-dd')),
       promotions,
@@ -193,7 +202,7 @@ export default function AdminSettings() {
   const addBanner = () => setPromotions(prev => [...prev, ""]);
   const updateBanner = (index: number, value: string) => {
     const newBanners = [...promotions];
-    newBanners[index] = value;
+    newBanners[index] = value || "";
     setPromotions(newBanners);
   };
   const removeBanner = (index: number) => setPromotions(prev => prev.filter((_, i) => i !== index));
@@ -256,14 +265,14 @@ export default function AdminSettings() {
           <TabsTrigger value="horario" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <Clock className="w-4 h-4" /> Horário
           </TabsTrigger>
-          <TabsTrigger value="folgas" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-            <Plane className="w-4 h-4" /> Folgas
-          </TabsTrigger>
           <TabsTrigger value="regras" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <CalendarDays className="w-4 h-4" /> Regras
           </TabsTrigger>
           <TabsTrigger value="notificacoes" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <Bell className="w-4 h-4" /> Notificações
+          </TabsTrigger>
+          <TabsTrigger value="integracoes" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+            <Zap className="w-4 h-4" /> Integrações
           </TabsTrigger>
           <TabsTrigger value="promocoes" className="gap-2 px-6 py-2.5 rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
             <Tag className="w-4 h-4" /> Promoções
@@ -356,52 +365,6 @@ export default function AdminSettings() {
                   )}
                 </div>
               ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="folgas">
-          <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
-            <CardHeader className="bg-secondary/10">
-              <CardTitle>Folgas e Férias</CardTitle>
-              <CardDescription>Selecione dias específicos para bloquear agendamentos (ex: feriados, folgas ou férias).</CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 space-y-6">
-              <div className="flex flex-col md:flex-row gap-8 items-start">
-                <div className="bg-white p-4 border-2 rounded-3xl shadow-sm">
-                  <Calendar
-                    mode="multiple"
-                    selected={offDays}
-                    onSelect={(dates) => setOffDays(dates || [])}
-                    locale={ptBR}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex-1 space-y-4">
-                  <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/20">
-                    <h3 className="text-sm font-black uppercase text-primary tracking-widest mb-2 flex items-center gap-2">
-                      <Plane className="w-4 h-4" /> Dias Selecionados
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {offDays.length > 0 ? (
-                        offDays.sort((a,b) => a.getTime() - b.getTime()).map((date, i) => (
-                          <div key={i} className="bg-primary text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
-                            {format(date, "dd/MM/yyyy")}
-                            <X className="w-3 h-3 cursor-pointer" onClick={() => setOffDays(offDays.filter((_, idx) => idx !== i))} />
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-muted-foreground font-medium">Nenhum dia bloqueado. Clique no calendário para selecionar.</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-6 bg-secondary/5 rounded-3xl border-2 border-dashed">
-                    <p className="text-xs font-bold text-muted-foreground leading-relaxed">
-                      💡 Os dias selecionados ficarão desabilitados para agendamento na sua página pública. Lembre-se de clicar em "Salvar Tudo" após selecionar os dias.
-                    </p>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -514,17 +477,50 @@ export default function AdminSettings() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              <Separator className="bg-border/50" />
-              
-              <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/20 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                <div className="p-4 bg-primary text-white rounded-2xl shadow-lg">
-                  <Settings className="w-8 h-8" />
+        <TabsContent value="integracoes">
+          <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
+            <CardHeader className="bg-accent/5">
+              <CardTitle className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-accent" />
+                API de WhatsApp (Automação Real)
+              </CardTitle>
+              <CardDescription>Conecte o AgendaFácil Pro a ferramentas como Z-API ou Evolution API para disparos 100% automáticos.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8 p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-muted-foreground">URL da API (Endpoint)</Label>
+                  <Input 
+                    value={whatsappApiUrl} 
+                    onChange={(e) => setWhatsappApiUrl(e.target.value)} 
+                    placeholder="https://api.z-api.io/instances/SUA_INSTANCIA/token/SEU_TOKEN/send-text" 
+                    className="h-14 border-2 rounded-2xl px-6 font-bold" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-muted-foreground">Token de Acesso (API Key)</Label>
+                  <Input 
+                    type="password"
+                    value={whatsappApiToken} 
+                    onChange={(e) => setWhatsappApiToken(e.target.value)} 
+                    placeholder="Seu Token Secreto" 
+                    className="h-14 border-2 rounded-2xl px-6 font-bold" 
+                  />
+                </div>
+              </div>
+
+              <div className="p-6 bg-accent/5 rounded-3xl border-2 border-accent/20 flex flex-col sm:flex-row items-center gap-4">
+                <div className="p-4 bg-accent text-white rounded-2xl">
+                  <Info className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-sm font-black uppercase text-primary tracking-widest">Dica de Gestão</h4>
-                  <p className="text-sm font-bold leading-relaxed">
-                    Manter as notificações ativas é a melhor forma de profissionalizar seu salão. Clientes que recebem lembretes sentem-se mais bem cuidados e valorizam mais o seu tempo.
+                  <h4 className="text-sm font-black uppercase text-accent tracking-widest">Como funciona?</h4>
+                  <p className="text-sm font-bold text-muted-foreground leading-relaxed">
+                    Ao preencher esses dados, o sistema enviará os agendamentos para o seu servidor de WhatsApp. Você precisará de uma conta em serviços como <span className="text-foreground font-black underline">Z-API</span> ou instalar a <span className="text-foreground font-black underline">Evolution API</span> em seu servidor.
                   </p>
                 </div>
               </div>

@@ -187,9 +187,12 @@ export default function AdminAgenda() {
     const slotEnd = addMinutes(slotStart, totalDuration || 30);
 
     return allAppointments.some(apt => {
-      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado' || apt.status === 'concluido') return false;
+      // Ignora cancelados ou não comparecidos
+      if (!apt.startTime || apt.id === editingAppointmentId || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado' || apt.status === 'nao_compareceu') return false;
       const aptStart = parseISO(apt.startTime);
       const aptEnd = parseISO(apt.endTime);
+      
+      // Regra de Conflito Robusta: novoInicio < existFim && novoFim > existInicio
       return (slotStart < aptEnd && slotEnd > aptStart);
     });
   };
@@ -280,12 +283,13 @@ export default function AdminAgenda() {
     
     const cleanClientPhone = clientPhone.replace(/\D/g, '');
     const data = {
+      salonId: user.uid,
       clientName,
       clientPhone: cleanClientPhone,
       serviceIds: selectedServiceIds,
       employeeId: selectedEmployeeId,
       startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
+      endTime: endTime.toISOString(), // Salvo para persistência robusta
       timezone: "America/Sao_Paulo",
       status: selectedStatus,
       updatedAt: new Date().toISOString(),

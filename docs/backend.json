@@ -74,6 +74,7 @@
         "name": { "type": "string" },
         "role": { "type": "string" },
         "offeredServiceIds": { "type": "array", "items": { "type": "string" } },
+        "workingHours": { "type": "object", "description": "Horários personalizados do profissional (opcional)" },
         "isActive": { "type": "boolean" }
       },
       "required": ["id", "name"]
@@ -84,6 +85,7 @@
       "description": "Agendamento de serviço com suporte a múltiplos serviços.",
       "properties": {
         "id": { "type": "string" },
+        "salonId": { "type": "string", "description": "ID da empresa/salão" },
         "clientName": { "type": "string" },
         "clientPhone": { "type": "string" },
         "serviceIds": { "type": "array", "items": { "type": "string" }, "description": "Lista de IDs dos serviços selecionados" },
@@ -91,7 +93,8 @@
         "startTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de início" },
         "endTime": { "type": "string", "format": "date-time", "description": "UTC Timestamp de fim" },
         "timezone": { "type": "string", "description": "Fuso horário original (ex: America/Sao_Paulo)" },
-        "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado", "concluido", "nao_compareceu"] }
+        "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado", "concluido", "nao_compareceu"] },
+        "finalPrice": { "type": "number" }
       },
       "required": ["id", "clientName", "serviceIds", "employeeId", "startTime", "endTime", "timezone"]
     },

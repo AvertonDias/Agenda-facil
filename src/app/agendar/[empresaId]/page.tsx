@@ -150,13 +150,17 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     slotStart.setHours(h, m, 0, 0);
     const slotEnd = addMinutes(slotStart, totalDuration);
 
+    // Regra de antecedência mínima
     if (isSameDay(selectedDate, new Date()) && isBefore(slotStart, new Date())) return true;
     if (isBefore(slotStart, addHours(new Date(), minLeadTime))) return true;
 
+    // Regra de Conflito Robusta: novoInicio < existFim && novoFim > existInicio
     return allAppointments.some(apt => {
-      if (!apt.startTime || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado') return false;
+      // Ignora cancelados ou não comparecidos para liberar o horário
+      if (!apt.startTime || apt.employeeId !== selectedEmployeeId || apt.status === 'cancelado' || apt.status === 'nao_compareceu') return false;
       const aptStart = parseISO(apt.startTime);
       const aptEnd = parseISO(apt.endTime);
+      
       return (slotStart < aptEnd && slotEnd > aptStart);
     });
   };
@@ -176,12 +180,13 @@ export default function PublicBookingPage(props: { params: Promise<{ empresaId: 
     try {
       const aptsRef = collection(db, "empresas", empresaId, "agendamentos");
       await addDocumentNonBlocking(aptsRef, {
+        salonId: empresaId,
         clientName,
-        clientPhone,
+        clientPhone: clientPhone.replace(/\D/g, ""),
         serviceIds: selectedServiceIds,
         employeeId: selectedEmployeeId,
         startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
+        endTime: endTime.toISOString(), // Salvo para facilitar leituras futuras
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         status: "pendente",
         finalPrice: totalPrice,

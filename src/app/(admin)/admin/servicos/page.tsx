@@ -32,7 +32,6 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 
-// Helper para selecionar o ícone baseado no nome
 export const getServiceIcon = (name: string) => {
   const n = name.toLowerCase();
   if (n.includes("corte") || n.includes("cabelo") || n.includes("tesoura")) return <Scissors className="w-5 h-5" />;
@@ -51,7 +50,6 @@ export default function AdminServices() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
 
-  // Form state
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("30");
   const [price, setPrice] = useState("0");
@@ -63,23 +61,30 @@ export default function AdminServices() {
 
   const { data: services, isLoading } = useCollection(servicesQuery);
 
-  const filteredServices = services?.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const resetForm = () => {
+    setName("");
+    setDuration("30");
+    setPrice("0");
+    setEditingService(null);
+  };
 
   const handleOpenDialog = (service?: any) => {
     if (service) {
       setEditingService(service);
-      setName(service.name);
-      setDuration(service.durationMinutes.toString());
-      setPrice(service.basePrice.toString());
+      setName(service.name || "");
+      setDuration(service.durationMinutes?.toString() || "30");
+      setPrice(service.basePrice?.toString() || "0");
     } else {
-      setEditingService(null);
-      setName("");
-      setDuration("30");
-      setPrice("0");
+      resetForm();
     }
-    setTimeout(() => setIsDialogOpen(true), 200);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setTimeout(resetForm, 300);
+    }
   };
 
   const handleSubmit = () => {
@@ -87,10 +92,11 @@ export default function AdminServices() {
 
     const data = {
       name,
-      durationMinutes: parseInt(duration),
-      basePrice: parseFloat(price),
+      durationMinutes: parseInt(duration) || 30,
+      basePrice: parseFloat(price) || 0,
       isActive: true,
       ownerId: user.uid,
+      updatedAt: new Date().toISOString(),
     };
 
     if (editingService) {
@@ -99,7 +105,7 @@ export default function AdminServices() {
       toast({ title: "Serviço atualizado" });
     } else {
       const colRef = collection(db, "empresas", user.uid, "servicos");
-      addDocumentNonBlocking(colRef, data);
+      addDocumentNonBlocking(colRef, { ...data, createdAt: new Date().toISOString() });
       toast({ title: "Serviço adicionado" });
     }
 
@@ -112,6 +118,10 @@ export default function AdminServices() {
     deleteDocumentNonBlocking(docRef);
     toast({ title: "Serviço removido", variant: "destructive" });
   };
+
+  const filteredServices = services?.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">
@@ -127,7 +137,7 @@ export default function AdminServices() {
         </Button>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingService ? "Editar Serviço" : "Novo Serviço"}</DialogTitle>

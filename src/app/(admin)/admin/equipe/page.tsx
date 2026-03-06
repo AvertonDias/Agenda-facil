@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -69,21 +70,33 @@ export default function AdminEquipe() {
   const { data: collaborators, isLoading: loadingColabs } = useCollection(collaboratorsQuery);
   const { data: services } = useCollection(servicesQuery);
 
+  const resetForm = () => {
+    setName("");
+    setRole("");
+    setPhone("");
+    setSelectedServices([]);
+    setEditingCollaborator(null);
+  };
+
   const handleOpenDialog = (colab?: any) => {
     if (colab) {
       setEditingCollaborator(colab);
-      setName(colab.name);
+      setName(colab.name || "");
       setRole(colab.role || "");
-      setPhone(colab.phoneNumber || "");
+      setPhone(colab.phoneNumber ? maskPhone(colab.phoneNumber) : "");
       setSelectedServices(colab.offeredServiceIds || []);
     } else {
-      setEditingCollaborator(null);
-      setName("");
-      setRole("");
-      setPhone("");
-      setSelectedServices([]);
+      resetForm();
     }
-    setTimeout(() => setIsDialogOpen(true), 200);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      // Pequeno delay para resetar após a animação de fechamento
+      setTimeout(resetForm, 300);
+    }
   };
 
   const handleSubmit = () => {
@@ -92,10 +105,11 @@ export default function AdminEquipe() {
     const data = {
       name,
       role,
-      phoneNumber: phone,
+      phoneNumber: phone.replace(/\D/g, ''),
       offeredServiceIds: selectedServices,
       isActive: true,
       ownerId: user.uid,
+      updatedAt: new Date().toISOString(),
     };
 
     if (editingCollaborator) {
@@ -104,7 +118,7 @@ export default function AdminEquipe() {
       toast({ title: "Colaborador atualizado" });
     } else {
       const colabRef = collection(db, "empresas", user.uid, "colaboradores");
-      addDocumentNonBlocking(colabRef, data);
+      addDocumentNonBlocking(colabRef, { ...data, createdAt: new Date().toISOString() });
       toast({ title: "Colaborador adicionado" });
     }
 
@@ -140,7 +154,7 @@ export default function AdminEquipe() {
         </Button>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{editingCollaborator ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
@@ -254,7 +268,7 @@ export default function AdminEquipe() {
                 <div className="pt-4 border-t space-y-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
-                    {employee.phoneNumber || "Sem telefone"}
+                    {employee.phoneNumber ? maskPhone(employee.phoneNumber) : "Sem telefone"}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <UserCheck className="w-4 h-4" />

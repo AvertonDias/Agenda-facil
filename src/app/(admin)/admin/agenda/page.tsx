@@ -194,19 +194,37 @@ export default function AdminAgenda() {
     });
   };
 
+  const resetForm = () => {
+    setClientName("");
+    setClientPhone("");
+    setSelectedServiceIds([]);
+    setSelectedEmployeeId("");
+    setSelectedTime("");
+    setSelectedStatus("confirmado");
+    setSelectedDate(date || new Date());
+    setEditingAppointmentId(null);
+  };
+
   const handleOpenEditDialog = (apt: any) => {
     setEditingAppointmentId(apt.id);
-    setClientName(apt.clientName);
+    setClientName(apt.clientName || "");
     setClientPhone(apt.clientPhone ? maskPhone(apt.clientPhone) : "");
     setSelectedServiceIds(apt.serviceIds || [apt.serviceId].filter(Boolean));
-    setSelectedEmployeeId(apt.employeeId);
+    setSelectedEmployeeId(apt.employeeId || "");
     setSelectedStatus(apt.status || "confirmado");
     if (apt.startTime) {
       const start = parseISO(apt.startTime);
       setSelectedDate(start);
       setSelectedTime(format(start, "HH:mm"));
     }
-    setTimeout(() => setIsDialogOpen(true), 200);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setTimeout(resetForm, 300);
+    }
   };
 
   const handleQuickStatusUpdate = async (apt: any, newStatus: string) => {
@@ -303,7 +321,6 @@ export default function AdminAgenda() {
         description: selectedStatus === 'concluido' ? "O atendimento foi finalizado e os pontos de fidelidade foram creditados." : undefined
       });
       setIsDialogOpen(false);
-      resetForm();
     } catch (e) {
       toast({ title: "Erro ao salvar", variant: "destructive" });
     } finally {
@@ -316,17 +333,6 @@ export default function AdminAgenda() {
     const docRef = doc(db, "empresas", user.uid, "agendamentos", appointmentId);
     deleteDocumentNonBlocking(docRef);
     toast({ title: "Agendamento removido", variant: "destructive" });
-  };
-
-  const resetForm = () => {
-    setClientName("");
-    setClientPhone("");
-    setSelectedServiceIds([]);
-    setSelectedEmployeeId("");
-    setSelectedTime("");
-    setSelectedStatus("confirmado");
-    setSelectedDate(date || new Date());
-    setEditingAppointmentId(null);
   };
 
   const toggleService = (id: string) => {
@@ -360,7 +366,7 @@ export default function AdminAgenda() {
         </Button>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-black">
